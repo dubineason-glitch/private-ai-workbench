@@ -1,118 +1,104 @@
-# 私人 AI 工作台
+# 私人 AI 工作台 v1.0
 
-一个部署在 Cloudflare Workers + D1 上的单用户长期 AI 工作台，并提供 GitHub Actions 自动构建未签名 iOS IPA。
+一个单用户、长期积累的私人 AI 工作台：Cloudflare Worker + D1 + React Web App，配一个可长期复用的原生 iOS WebView 壳。
 
-## 五个角色
+## 核心思路
 
-- 新媒体运营助手
-- 健康咨询师
+**Web 才是产品本体，IPA 只是一层安全壳。**
+
+- Web：功能、UI、AI 配置、记忆逻辑都部署在 Cloudflare，更新网页不需要重新安装 IPA。
+- iOS 壳：首次输入工作台域名和访问口令，验证后用 Keychain 保存，30 天免密；随后全屏加载远端工作台。
+- GitHub：`main` 每次提交自动部署 Cloudflare；iOS 壳只在你手动触发时编译一次。
+
+## 五个自动角色
+
+- 新媒体运营
+- 健康咨询
 - 日常助理
-- 软装学习伙伴
-- 随笔记录员
+- 软装学习
+- 随笔记录
 
-所有输入从同一个入口进入，由模型自动判断主归属。每条对话会同时写入：
+用户无需手动切角色。AI 自动判断主归属，并把值得长期保留的信息写进 D1。
 
-1. 原始对话记录
-2. 时间线摘要
-3. 可复用长期记忆
-4. 可选的结构化指标
+## AI 提供商
 
-## 架构
+网页「设置 → AI 模型」支持：
 
-- Web UI: React + Vite
-- API / Hosting: Cloudflare Worker + Workers Static Assets
-- Database: Cloudflare D1
-- AI: Cloudflare Workers AI（默认）/ OpenAI Responses API（可选）
-- iOS: Capacitor 8
-- CI/CD: GitHub Actions
+1. **Cloudflare Workers AI**：默认，无额外 API key。
+2. **OpenAI Responses API**：默认 API 地址 `https://api.openai.com/v1`，模型名称可自由填写。
+3. **OpenAI 兼容 API**：可填写自定义 HTTPS Base URL、API key、模型名称；后端使用 `/chat/completions`。
 
-## 一、部署 Cloudflare
+API key 不回传到前端。保存时由 Worker 使用 APP_TOKEN 派生 AES-GCM 密钥，加密后写入 D1。
 
-### 1. GitHub Secrets
+> 如果你更换 GitHub Secret `APP_TOKEN`，此前加密保存的第三方 API key 将无法解密，需要在设置中重新填写一次。
 
-在仓库 `Settings -> Secrets and variables -> Actions` 添加：
+## GitHub Secrets
 
-- `CLOUDFLARE_API_TOKEN`
+仓库 `Settings → Secrets and variables → Actions`：
+
 - `CLOUDFLARE_ACCOUNT_ID`
-- `APP_TOKEN`：你自己的长随机私人访问口令
+- `CLOUDFLARE_API_TOKEN`
+- `APP_TOKEN`
 
-默认直接使用 Cloudflare Workers AI，不需要 OpenAI API Key。
+Cloudflare Token 至少需要：
 
-如果以后想切换到 OpenAI：
+- Account → Workers Scripts → Edit
+- Account → D1 → Edit
 
-- 再添加可选 Secret：`OPENAI_API_KEY`
-- 把 `wrangler.jsonc` 中 `AI_PROVIDER` 改成 `openai`
-- 可按需修改 `OPENAI_MODEL`
+可选：在 GitHub `Variables` 中增加：
 
-Cloudflare API Token 建议至少包含 Workers Scripts 写入/编辑权限与 D1 写入（D1 Edit/Write）权限，并只作用于这个 Cloudflare Account。Workers AI 通过 Worker binding 在运行时调用。
+- `APP_PUBLIC_URL=https://db.dubin.cc.cd`
 
-### 2. 推送到 main
+这样部署后的 Smoke Test 会直接验证你的自定义域名；不填则验证 workers.dev 地址。
 
-`Deploy Cloudflare` 工作流会：
+## Cloudflare 部署
 
-1. 安装依赖
-2. 构建网页
-3. 检查 `private-ai-workbench` D1 是否存在，不存在则在 APAC 创建
-4. 临时写入 D1 UUID
-5. 应用 migrations
-6. 部署 Worker + 静态资源
-7. 将 APP_TOKEN 写入 Worker Secret；如配置了 OpenAI Key，也会一并写入
+工作流：`.github/workflows/deploy-cloudflare.yml`
 
-首次部署完成后，记下 Cloudflare 给你的 URL。
+它会自动完成：
 
-## 二、构建 iOS IPA
+1. npm install
+2. TypeScript typecheck
+3. Vite 构建
+4. 创建/解析 D1
+5. 执行全部 migrations
+6. 部署 Worker + Static Assets
+7. 验证网页首页
+8. 验证错误口令必须返回 401
+9. 验证 `/api/health`
+10. 验证 D1 `/api/overview`
+11. 验证 AI 设置接口
 
-打开 GitHub `Actions -> Build Unsigned iOS IPA -> Run workflow`。
+## iOS 壳
 
-输入：
+工作流：`.github/workflows/build-ios.yml`
 
-- `api_url`: 你的 Cloudflare URL
-- `bundle_id`: 可保持默认，也可以改成你自己的唯一 Bundle ID
+手动运行 `Build iOS Shell IPA` 即可。它不需要填写 Cloudflare URL，因为域名在 App 首次启动时输入。
 
-工作流会使用 macOS 26 + Xcode 26.6、Capacitor 8 自动生成 iOS 工程，编译真机 Release `.app`，然后打包成：
+首次启动：
 
-`PrivateAIWorkbench-unsigned.ipa`
+1. 输入 `https://db.dubin.cc.cd`（或未来的新域名）
+2. 输入 APP_TOKEN 对应的私人访问口令
+3. App 请求 `/api/health` 验证
+4. 验证成功后把口令写入 iOS Keychain
+5. 30 天内免密，全屏进入远端 Web 工作台
 
-它是**未签名 IPA**，适合你下载后自行用你熟悉的自签工具重签安装。
+Web 端「设置 → 修改 App 连接」会触发 `workbench://shell-settings`，回到原生连接页，可更换域名或重新登录。
 
-## 三、本地开发
+## 数据
+
+- `entries`：完整记录与 AI 回复
+- `memories`：长期记忆
+- `metrics`：可追踪指标
+- `ai_settings`：AI 提供商、API 地址、模型、加密 API key
+
+设置页可导出 JSON；导出中不会包含 API key 明文或密文。
+
+## 本地开发
 
 ```bash
 npm install
 cp .dev.vars.example .dev.vars
-# 先把 wrangler.jsonc 中 D1 database_id 替换为真实 UUID
 npm run cf:migrate:local
 npm run cf:dev
 ```
-
-如果只调 UI：
-
-```bash
-npm run dev
-```
-
-## 数据表
-
-- `entries`: 原始输入 + AI 回复 + 摘要 + 分类
-- `memories`: 稳定偏好、目标、项目状态、长期事实
-- `metrics`: 可追踪的数值/状态指标
-
-## 安全建议
-
-- 默认模型运行在 Cloudflare Workers AI；如启用 OpenAI，`OPENAI_API_KEY` 只放 Worker Secret，不进入前端。
-- `APP_TOKEN` 不要写死在源码；由 GitHub Secret 注入。
-- 当前是单用户私人模式，前端把 APP_TOKEN 保存在设备 localStorage。
-- 后续如需要更强认证，可升级为 Cloudflare Access / Apple Sign In。
-- 健康角色用于一般性信息、生活方式建议和趋势整理，不替代线下医疗诊断。
-
-## 下一阶段可加
-
-- 每日/每周自动总结
-- 提醒与日程
-- 图片、语音、文件输入
-- 新媒体账号数据看板
-- 健康指标趋势图
-- 软装案例图库与标签体系
-- 随笔全文搜索
-- Vectorize 语义检索
-- 推送通知

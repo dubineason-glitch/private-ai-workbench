@@ -1,4 +1,6 @@
 export type Role = "media" | "health" | "daily" | "interior" | "journal";
+export type HealthSignal = "none" | "caution" | "urgent";
+export type AIProvider = "workers-ai" | "openai-responses" | "openai-compatible";
 
 export interface Entry {
   id: string;
@@ -9,7 +11,7 @@ export interface Entry {
   summary: string;
   tags_json?: string;
   tags?: string[];
-  health_signal: "none" | "caution" | "urgent";
+  health_signal: HealthSignal;
   created_at: string;
 }
 
@@ -43,4 +45,35 @@ export interface Overview {
   counts: Record<Role, number>;
   memoryCounts: Record<Role, number>;
   recent: Entry[];
+  latestMetrics: Metric[];
+}
+
+export interface HealthResponse {
+  ok: boolean;
+  provider: AIProvider;
+  model: string;
+  configured: boolean;
+}
+
+export interface AISettings {
+  provider: AIProvider;
+  base_url: string;
+  model: string;
+  has_api_key: boolean;
+  updated_at?: string;
+}
+
+export interface AISavePayload {
+  provider: AIProvider;
+  base_url: string;
+  model: string;
+  api_key?: string;
+  clear_api_key?: boolean;
+}
+
+export interface AITestResult {
+  ok: boolean;
+  provider: AIProvider;
+  model: string;
+  message: string;
 }

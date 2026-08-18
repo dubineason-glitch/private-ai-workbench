@@ -13,7 +13,7 @@ async function fetchRetry(url, init = {}, attempts = 12) {
     } catch (e) {
       last = e;
     }
-    await new Promise((r) => setTimeout(r, Math.min(1500 * i, 6000)));
+    await new Promise((r) => setTimeout(r, Math.min(1200 * i, 5000)));
   }
   throw last || new Error(`Unable to fetch ${url}`);
 }
@@ -22,27 +22,41 @@ const root = await fetchRetry(`${base}/`);
 const rootText = await root.text();
 if (!root.ok || !/id=["']root["']/.test(rootText)) {
   console.error(rootText.slice(0, 1200));
-  throw new Error(`SPA smoke test failed: ${root.status}; index.html/root element not found`);
+  throw new Error(`SPA smoke test failed: ${root.status}; root element not found`);
 }
-console.log(`✓ SPA: ${root.status} ${base}/`);
+console.log(`✓ SPA: ${root.status}`);
 
-const health = await fetchRetry(`${base}/api/health`, {
-  headers: { "x-workbench-token": token },
+const unauthorized = await fetchRetry(`${base}/api/health`, {
+  headers: { "x-workbench-token": "definitely-wrong-token" },
 });
+if (unauthorized.status !== 401) {
+  throw new Error(`Auth smoke test expected 401, got ${unauthorized.status}`);
+}
+console.log("✓ Auth rejection: 401");
+
+const headers = { "x-workbench-token": token };
+const health = await fetchRetry(`${base}/api/health`, { headers });
 const healthText = await health.text();
 if (!health.ok) throw new Error(`Health API failed: ${health.status} ${healthText}`);
 const healthJson = JSON.parse(healthText);
 if (healthJson.ok !== true) throw new Error(`Health API returned invalid payload: ${healthText}`);
-console.log(`✓ API health: ${health.status} (${healthJson.provider || "provider?"} / ${healthJson.model || "model?"})`);
+console.log(`✓ API health: ${health.status} (${healthJson.provider} / ${healthJson.model})`);
 
-const overview = await fetchRetry(`${base}/api/overview`, {
-  headers: { "x-workbench-token": token },
-});
+const overview = await fetchRetry(`${base}/api/overview`, { headers });
 const overviewText = await overview.text();
 if (!overview.ok) throw new Error(`D1 overview failed: ${overview.status} ${overviewText}`);
 const overviewJson = JSON.parse(overviewText);
-if (!overviewJson.counts || !overviewJson.memoryCounts) {
+if (!overviewJson.counts || !overviewJson.memoryCounts || !Array.isArray(overviewJson.latestMetrics)) {
   throw new Error(`D1 overview returned invalid payload: ${overviewText}`);
 }
 console.log(`✓ D1 overview: ${overview.status}`);
+
+const settings = await fetchRetry(`${base}/api/settings/ai`, { headers });
+const settingsText = await settings.text();
+if (!settings.ok) throw new Error(`AI settings failed: ${settings.status} ${settingsText}`);
+const settingsJson = JSON.parse(settingsText);
+if (!settingsJson.provider || !settingsJson.model) {
+  throw new Error(`AI settings returned invalid payload: ${settingsText}`);
+}
+console.log(`✓ AI settings: ${settingsJson.provider} / ${settingsJson.model}`);
 console.log(`\nDEPLOYMENT_OK=${base}`);
