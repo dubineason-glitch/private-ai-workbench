@@ -1,4 +1,12 @@
-import { FormEvent, useEffect, useMemo, useState } from "react";
+import {
+  FormEvent,
+  PointerEvent as ReactPointerEvent,
+  RefObject,
+  useEffect,
+  useMemo,
+  useRef,
+  useState,
+} from "react";
 import {
   api,
   clearSavedToken,
@@ -12,25 +20,55 @@ import {
 import type {
   AISavePayload,
   AISettings,
+  CalendarActionResult,
+  CalendarEvent,
+  CalendarEventInput,
   Entry,
+  EventCategory,
   HealthResponse,
   MemoryItem,
   Metric,
-  Overview,
   Role,
 } from "./types";
 
-const ROLES: Record<Role, { name: string; short: string; icon: string }> = {
-  media: { name: "新媒体运营", short: "运营", icon: "◈" },
-  health: { name: "健康咨询", short: "健康", icon: "＋" },
-  daily: { name: "日常助理", short: "日常", icon: "⌁" },
-  interior: { name: "软装学习", short: "软装", icon: "◇" },
-  journal: { name: "随笔记录", short: "随笔", icon: "✎" },
+const ROLES: Record<Role, { name: string; short: string }> = {
+  media: { name: "新媒体运营", short: "运营" },
+  health: { name: "健康咨询", short: "健康" },
+  daily: { name: "日常助理", short: "日常" },
+  interior: { name: "软装学习", short: "软装" },
+  journal: { name: "随笔记录", short: "随笔" },
 };
 
-const roleKeys = Object.keys(ROLES) as Role[];
-type View = "home" | "chat" | "memory" | "settings";
+const ROLE_KEYS = Object.keys(ROLES) as Role[];
+
+const CATEGORY_META: Record<
+  EventCategory,
+  { label: string; className: string; color: string }
+> = {
+  work: { label: "工作", className: "cat-work", color: "#ff6fa8" },
+  study: { label: "学习", className: "cat-study", color: "#9b78ff" },
+  life: { label: "生活", className: "cat-life", color: "#58aef7" },
+  health: { label: "健康", className: "cat-health", color: "#55c88a" },
+  inspiration: { label: "灵感", className: "cat-inspiration", color: "#ff9c57" },
+  other: { label: "其他", className: "cat-other", color: "#a8a4aa" },
+};
+
+const CATEGORY_KEYS = Object.keys(CATEGORY_META) as EventCategory[];
+
+type MainView = "chat" | "calendar";
+type PanelView = "settings" | "memory" | null;
 type MemoryMode = "memory" | "metric";
+
+type EventDraft = {
+  id?: string;
+  title: string;
+  note: string;
+  date: string;
+  startTime: string;
+  endTime: string;
+  allDay: boolean;
+  category: EventCategory;
+};
 
 const EMPTY_AI: AISettings = {
   provider: "workers-ai",
@@ -39,9 +77,47 @@ const EMPTY_AI: AISettings = {
   has_api_key: true,
 };
 
-function friendlyDate(input: string) {
-  const normalized = input.includes(" ") ? input.replace(" ", "T") : input;
-  const date = new Date(normalized.endsWith("Z") ? normalized : `${normalized}Z`);
+function pad(value: number) {
+  return String(value).padStart(2, "0");
+}
+
+function dateKey(date: Date) {
+  return `${date.getFullYear()}-${pad(date.getMonth() + 1)}-${pad(date.getDate())}`;
+}
+
+function eventDateKey(event: CalendarEvent) {
+  return dateKey(new Date(event.start_at));
+}
+
+function monthTitle(date: Date) {
+  return `${date.getFullYear()}年${date.getMonth() + 1}月`;
+}
+
+function addMonths(date: Date, amount: number) {
+  return new Date(date.getFullYear(), date.getMonth() + amount, 1);
+}
+
+function monthQueryRange(month: Date) {
+  const start = new Date(month.getFullYear(), month.getMonth(), 1);
+  start.setDate(start.getDate() - 8);
+  const end = new Date(month.getFullYear(), month.getMonth() + 1, 1);
+  end.setDate(end.getDate() + 8);
+  return { start: start.toISOString(), end: end.toISOString() };
+}
+
+function calendarCells(month: Date) {
+  const first = new Date(month.getFullYear(), month.getMonth(), 1);
+  const gridStart = new Date(first);
+  gridStart.setDate(first.getDate() - first.getDay());
+  return Array.from({ length: 42 }, (_, index) => {
+    const day = new Date(gridStart);
+    day.setDate(gridStart.getDate() + index);
+    return day;
+  });
+}
+
+function friendlyDateTime(input: string) {
+  const date = new Date(input);
   if (Number.isNaN(date.getTime())) return input;
   return new Intl.DateTimeFormat("zh-CN", {
     month: "numeric",
@@ -51,84 +127,143 @@ function friendlyDate(input: string) {
   }).format(date);
 }
 
-function providerName(provider?: string) {
-  if (provider === "openai-responses") return "OpenAI Responses";
-  if (provider === "openai-compatible") return "OpenAI 兼容 API";
-  return "Cloudflare Workers AI";
+function friendlyTime(event: CalendarEvent) {
+  if (Boolean(event.all_day)) return "全天";
+  const start = new Date(event.start_at);
+  const end = new Date(event.end_at);
+  return `${pad(start.getHours())}:${pad(start.getMinutes())} – ${pad(end.getHours())}:${pad(end.getMinutes())}`;
 }
 
-function parseTags(entry: Entry) {
-  if (Array.isArray(entry.tags)) return entry.tags;
-  try {
-    return entry.tags_json ? (JSON.parse(entry.tags_json) as string[]) : [];
-  } catch {
-    return [];
+function providerName(provider?: string) {
+  if (provider === "openai-responses") return "OpenAI Responses";
+  if (provider === "openai-compatible") return "兼容 API";
+  return "Workers AI";
+}
+
+function greeting() {
+  const hour = new Date().getHours();
+  if (hour < 6) return "还没睡吗？";
+  if (hour < 11) return "早上好";
+  if (hour < 14) return "中午好";
+  if (hour < 18) return "下午好";
+  return "晚上好";
+}
+
+function makeDraft(date: string, event?: CalendarEvent): EventDraft {
+  if (event) {
+    const start = new Date(event.start_at);
+    const end = new Date(event.end_at);
+    return {
+      id: event.id,
+      title: event.title,
+      note: event.note || "",
+      date: eventDateKey(event),
+      startTime: `${pad(start.getHours())}:${pad(start.getMinutes())}`,
+      endTime: `${pad(end.getHours())}:${pad(end.getMinutes())}`,
+      allDay: Boolean(event.all_day),
+      category: event.category,
+    };
   }
+
+  const now = new Date();
+  const nextHour = Math.min(Math.max(now.getHours() + 1, 9), 21);
+  return {
+    title: "",
+    note: "",
+    date,
+    startTime: `${pad(nextHour)}:00`,
+    endTime: `${pad(Math.min(nextHour + 1, 23))}:00`,
+    allDay: false,
+    category: "life",
+  };
+}
+
+function draftToPayload(draft: EventDraft): CalendarEventInput {
+  const timezone = Intl.DateTimeFormat().resolvedOptions().timeZone || "UTC";
+  let start: Date;
+  let end: Date;
+
+  if (draft.allDay) {
+    start = new Date(`${draft.date}T00:00:00`);
+    end = new Date(start);
+    end.setDate(end.getDate() + 1);
+  } else {
+    start = new Date(`${draft.date}T${draft.startTime}:00`);
+    end = new Date(`${draft.date}T${draft.endTime}:00`);
+    if (end <= start) end = new Date(start.getTime() + 3600000);
+  }
+
+  return {
+    title: draft.title.trim(),
+    note: draft.note.trim(),
+    start_at: start.toISOString(),
+    end_at: end.toISOString(),
+    all_day: draft.allDay,
+    category: draft.category,
+    timezone,
+  };
 }
 
 export default function App() {
   const [token, setToken] = useState(getSavedToken());
   const [draftToken, setDraftToken] = useState("");
-  const [view, setView] = useState<View>("home");
-  const [memoryMode, setMemoryMode] = useState<MemoryMode>("memory");
-  const [overview, setOverview] = useState<Overview | null>(null);
+  const [view, setView] = useState<MainView>("chat");
+  const [panel, setPanel] = useState<PanelView>(null);
   const [history, setHistory] = useState<Entry[]>([]);
-  const [memories, setMemories] = useState<MemoryItem[]>([]);
-  const [metrics, setMetrics] = useState<Metric[]>([]);
+  const [health, setHealth] = useState<HealthResponse | null>(null);
   const [message, setMessage] = useState("");
   const [sending, setSending] = useState(false);
   const [loading, setLoading] = useState(false);
   const [verifyingToken, setVerifyingToken] = useState(false);
   const [error, setError] = useState("");
   const [notice, setNotice] = useState("");
-  const [lastReply, setLastReply] = useState<Entry | null>(null);
+  const [lastCalendarActions, setLastCalendarActions] = useState<CalendarActionResult[]>([]);
+  const [lastActionEntryId, setLastActionEntryId] = useState("");
+
+  const [calendarMonth, setCalendarMonth] = useState(
+    () => new Date(new Date().getFullYear(), new Date().getMonth(), 1),
+  );
+  const [selectedDate, setSelectedDate] = useState(() => dateKey(new Date()));
+  const [events, setEvents] = useState<CalendarEvent[]>([]);
+  const [calendarLoading, setCalendarLoading] = useState(false);
+  const [eventDraft, setEventDraft] = useState<EventDraft | null>(null);
+  const [eventSaving, setEventSaving] = useState(false);
+  const [undoEvent, setUndoEvent] = useState<CalendarEvent | null>(null);
+
+  const [memoryMode, setMemoryMode] = useState<MemoryMode>("memory");
   const [activeRole, setActiveRole] = useState<Role | "all">("all");
-  const [health, setHealth] = useState<HealthResponse | null>(null);
+  const [memories, setMemories] = useState<MemoryItem[]>([]);
+  const [metrics, setMetrics] = useState<Metric[]>([]);
 
   const [aiSettings, setAISettings] = useState<AISettings>(EMPTY_AI);
   const [aiApiKey, setAiApiKey] = useState("");
   const [aiSaving, setAiSaving] = useState(false);
   const [aiTesting, setAiTesting] = useState(false);
 
+  const chatEndRef = useRef<HTMLDivElement | null>(null);
   const nativeShell = isNativeShell();
 
-  const totalEntries = useMemo(
-    () =>
-      overview ? roleKeys.reduce((sum, role) => sum + (overview.counts[role] || 0), 0) : 0,
-    [overview],
-  );
-  const totalMemories = useMemo(
-    () =>
-      overview
-        ? roleKeys.reduce((sum, role) => sum + (overview.memoryCounts[role] || 0), 0)
-        : 0,
-    [overview],
+  const sortedHistory = useMemo(
+    () => [...history].sort((a, b) => new Date(a.created_at).getTime() - new Date(b.created_at).getTime()),
+    [history],
   );
 
-  async function refresh() {
-    if (!getSavedToken()) return;
-    setLoading(true);
-    setError("");
-    try {
-      const role = activeRole === "all" ? undefined : activeRole;
-      const [o, h, m, metricList, healthResult] = await Promise.all([
-        api.overview(),
-        api.history(role),
-        api.memories(role),
-        api.metrics(role),
-        api.health(),
-      ]);
-      setOverview(o);
-      setHistory(h.entries);
-      setMemories(m.memories);
-      setMetrics(metricList.metrics);
-      setHealth(healthResult);
-    } catch (e) {
-      handleRequestError(e, "加载失败");
-    } finally {
-      setLoading(false);
+  const eventsByDate = useMemo(() => {
+    const map = new Map<string, CalendarEvent[]>();
+    for (const event of events) {
+      if (event.status === "deleted") continue;
+      const key = eventDateKey(event);
+      const list = map.get(key) || [];
+      list.push(event);
+      map.set(key, list);
     }
-  }
+    for (const list of map.values()) {
+      list.sort((a, b) => a.start_at.localeCompare(b.start_at));
+    }
+    return map;
+  }, [events]);
+
+  const selectedEvents = eventsByDate.get(selectedDate) || [];
 
   function handleRequestError(e: unknown, fallback: string) {
     const errorWithStatus = e as Error & { status?: number };
@@ -137,27 +272,105 @@ export default function App() {
       clearSavedToken();
       setToken("");
       setDraftToken("");
-      setError("登录已失效，请重新验证访问口令。");
+      setError("登录已失效，请重新输入访问口令。");
       return;
     }
     setError(text);
   }
 
-  useEffect(() => {
-    if (token) void refresh();
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [token, activeRole]);
+  async function refreshChat() {
+    if (!getSavedToken()) return;
+    setLoading(true);
+    setError("");
+    try {
+      const [historyResult, healthResult] = await Promise.all([api.history(), api.health()]);
+      setHistory(historyResult.entries);
+      setHealth(healthResult);
+    } catch (e) {
+      handleRequestError(e, "加载失败");
+    } finally {
+      setLoading(false);
+    }
+  }
+
+  async function loadCalendar(month = calendarMonth) {
+    if (!getSavedToken()) return;
+    const range = monthQueryRange(month);
+    setCalendarLoading(true);
+    try {
+      const result = await api.events(range.start, range.end);
+      setEvents(result.events);
+    } catch (e) {
+      handleRequestError(e, "日历加载失败");
+    } finally {
+      setCalendarLoading(false);
+    }
+  }
+
+  async function loadMemoryData(role = activeRole) {
+    const selectedRole = role === "all" ? undefined : role;
+    try {
+      const [memoryResult, metricResult] = await Promise.all([
+        api.memories(selectedRole),
+        api.metrics(selectedRole),
+      ]);
+      setMemories(memoryResult.memories);
+      setMetrics(metricResult.metrics);
+    } catch (e) {
+      handleRequestError(e, "记忆加载失败");
+    }
+  }
+
+  async function loadAISettings() {
+    try {
+      const settings = await api.aiSettings();
+      setAISettings(settings);
+      setAiApiKey("");
+    } catch (e) {
+      handleRequestError(e, "AI 配置加载失败");
+    }
+  }
 
   useEffect(() => {
-    if (view === "settings" && token) void loadAISettings();
+    if (!token) return;
+    void refreshChat();
+    void loadCalendar(calendarMonth);
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [view, token]);
+  }, [token]);
+
+  useEffect(() => {
+    if (token) void loadCalendar(calendarMonth);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [calendarMonth]);
+
+  useEffect(() => {
+    if (panel === "settings" && token) void loadAISettings();
+    if (panel === "memory" && token) void loadMemoryData();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [panel, token]);
+
+  useEffect(() => {
+    if (panel === "memory" && token) void loadMemoryData(activeRole);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [activeRole]);
 
   useEffect(() => {
     if (!notice) return;
-    const timer = window.setTimeout(() => setNotice(""), 2600);
+    const timer = window.setTimeout(() => setNotice(""), 2800);
     return () => window.clearTimeout(timer);
   }, [notice]);
+
+  useEffect(() => {
+    if (!undoEvent) return;
+    const timer = window.setTimeout(() => setUndoEvent(null), 5000);
+    return () => window.clearTimeout(timer);
+  }, [undoEvent]);
+
+  useEffect(() => {
+    if (view !== "chat" || panel) return;
+    const timer = window.setTimeout(() => chatEndRef.current?.scrollIntoView({ behavior: "smooth" }), 80);
+    return () => window.clearTimeout(timer);
+  }, [view, panel, sortedHistory.length, sending]);
 
   async function applyToken(value: string) {
     const clean = value.trim();
@@ -170,7 +383,7 @@ export default function App() {
       setToken(clean);
       setHealth(result);
       setDraftToken("");
-      setNotice("已登录，本设备 30 天内免密");
+      setNotice("已登录 · 30 天免密");
     } catch (e) {
       clearSavedToken();
       setToken("");
@@ -194,9 +407,10 @@ export default function App() {
     try {
       const result = await api.chat(text);
       setMessage("");
-      setLastReply(result.entry);
-      setView("chat");
-      await refresh();
+      setLastCalendarActions(result.calendar_actions || []);
+      setLastActionEntryId(result.entry.id);
+      await refreshChat();
+      if (result.calendar_actions?.some((item) => item.ok)) await loadCalendar(calendarMonth);
     } catch (e) {
       handleRequestError(e, "发送失败");
     } finally {
@@ -204,13 +418,71 @@ export default function App() {
     }
   }
 
-  async function loadAISettings() {
+  function openCalendarForEvent(event: CalendarEvent) {
+    const date = new Date(event.start_at);
+    setCalendarMonth(new Date(date.getFullYear(), date.getMonth(), 1));
+    setSelectedDate(dateKey(date));
+    setView("calendar");
+    setPanel(null);
+  }
+
+  async function saveEventDraft() {
+    if (!eventDraft || !eventDraft.title.trim() || eventSaving) return;
+    setEventSaving(true);
+    setError("");
     try {
-      const settings = await api.aiSettings();
-      setAISettings(settings);
-      setAiApiKey("");
+      const payload = draftToPayload(eventDraft);
+      const result = eventDraft.id
+        ? await api.updateEvent(eventDraft.id, payload)
+        : await api.createEvent(payload);
+      setEventDraft(null);
+      const event = result.event;
+      const date = new Date(event.start_at);
+      setSelectedDate(dateKey(date));
+      setCalendarMonth(new Date(date.getFullYear(), date.getMonth(), 1));
+      await loadCalendar(new Date(date.getFullYear(), date.getMonth(), 1));
+      setNotice(eventDraft.id ? "日程已更新" : "已加入日历");
     } catch (e) {
-      handleRequestError(e, "AI 配置加载失败");
+      handleRequestError(e, "保存日程失败");
+    } finally {
+      setEventSaving(false);
+    }
+  }
+
+  async function deleteEvent(event: CalendarEvent) {
+    try {
+      await api.deleteEvent(event.id);
+      setUndoEvent(event);
+      await loadCalendar(calendarMonth);
+    } catch (e) {
+      handleRequestError(e, "删除日程失败");
+    }
+  }
+
+  async function undoDelete() {
+    if (!undoEvent) return;
+    try {
+      await api.restoreEvent(undoEvent.id);
+      setUndoEvent(null);
+      await loadCalendar(calendarMonth);
+      setNotice("已恢复日程");
+    } catch (e) {
+      handleRequestError(e, "恢复日程失败");
+    }
+  }
+
+  async function toggleComplete(event: CalendarEvent) {
+    try {
+      if (event.status === "completed") {
+        await api.reopenEvent(event.id);
+        setNotice("已恢复为待办");
+      } else {
+        await api.completeEvent(event.id);
+        setNotice("已完成");
+      }
+      await loadCalendar(calendarMonth);
+    } catch (e) {
+      handleRequestError(e, "更新日程失败");
     }
   }
 
@@ -243,30 +515,10 @@ export default function App() {
       const saved = await api.saveAISettings(buildAISavePayload());
       setAISettings(saved);
       setAiApiKey("");
+      setHealth(await api.health());
       setNotice("AI 配置已保存");
-      const latestHealth = await api.health();
-      setHealth(latestHealth);
     } catch (e) {
       handleRequestError(e, "AI 配置保存失败");
-    } finally {
-      setAiSaving(false);
-    }
-  }
-
-  async function clearAIKey() {
-    setAiSaving(true);
-    try {
-      const saved = await api.saveAISettings({
-        provider: aiSettings.provider,
-        base_url: aiSettings.base_url,
-        model: aiSettings.model,
-        clear_api_key: true,
-      });
-      setAISettings(saved);
-      setAiApiKey("");
-      setNotice("API key 已清除");
-    } catch (e) {
-      handleRequestError(e, "清除 API key 失败");
     } finally {
       setAiSaving(false);
     }
@@ -300,7 +552,7 @@ export default function App() {
       const url = URL.createObjectURL(blob);
       const a = document.createElement("a");
       a.href = url;
-      a.download = `private-ai-workbench-${new Date().toISOString().slice(0, 10)}.json`;
+      a.download = `db-workbench-${new Date().toISOString().slice(0, 10)}.json`;
       a.click();
       URL.revokeObjectURL(url);
       setNotice("数据备份已生成");
@@ -313,304 +565,551 @@ export default function App() {
     clearSavedToken();
     setToken("");
     setDraftToken("");
-    setOverview(null);
+    setPanel(null);
+    setHistory([]);
   }
 
   if (!token) {
     return (
       <div className="login-screen">
-        <div className="login-card">
-          <div className="app-icon">AI</div>
-          <h1>私人 AI 工作台</h1>
-          <p>一个入口，自动归档工作、生活与长期记忆。</p>
-          {error && <div className="inline-alert error">{error}</div>}
-          <form onSubmit={unlock} className="login-form">
-            <label>
-              <span>访问口令</span>
-              <input
-                type="password"
-                value={draftToken}
-                onChange={(e) => setDraftToken(e.target.value)}
-                placeholder="请输入私人访问口令"
-                autoComplete="current-password"
-                autoFocus
-              />
-            </label>
-            <button className="primary-button" type="submit" disabled={verifyingToken || !draftToken.trim()}>
-              {verifyingToken ? "正在验证…" : "进入工作台"}
-            </button>
-          </form>
+        <div className="login-orb login-orb-one" />
+        <div className="login-orb login-orb-two" />
+        <form className="login-card" onSubmit={unlock}>
+          <div className="db-logo large">DB<span>♡</span></div>
+          <div className="login-copy">
+            <h1>DB 工作台</h1>
+            <p>你的私人 AI、日历与长期记忆。</p>
+          </div>
+          {error && <div className="alert error">{error}</div>}
+          <label className="field">
+            <span>访问口令</span>
+            <input
+              type="password"
+              value={draftToken}
+              onChange={(e) => setDraftToken(e.target.value)}
+              placeholder="输入私人访问口令"
+              autoComplete="current-password"
+              autoFocus
+            />
+          </label>
+          <button className="primary-button" type="submit" disabled={!draftToken.trim() || verifyingToken}>
+            {verifyingToken ? "正在验证…" : "进入 DB"}
+          </button>
           <small>验证成功后，本设备 30 天内免密。</small>
-        </div>
+        </form>
       </div>
+    );
+  }
+
+  if (panel === "settings") {
+    return (
+      <SettingsPanel
+        onBack={() => setPanel(null)}
+        nativeShell={nativeShell}
+        health={health}
+        aiSettings={aiSettings}
+        setAISettings={setAISettings}
+        aiApiKey={aiApiKey}
+        setAiApiKey={setAiApiKey}
+        onProviderChange={changeProvider}
+        onTestAI={testAI}
+        onSaveAI={saveAI}
+        aiTesting={aiTesting}
+        aiSaving={aiSaving}
+        onOpenMemory={() => setPanel("memory")}
+        onExport={() => void exportData()}
+        onLogout={logout}
+        notice={notice}
+        error={error}
+      />
+    );
+  }
+
+  if (panel === "memory") {
+    return (
+      <MemoryPanel
+        onBack={() => setPanel("settings")}
+        mode={memoryMode}
+        setMode={setMemoryMode}
+        activeRole={activeRole}
+        setActiveRole={setActiveRole}
+        memories={memories}
+        metrics={metrics}
+      />
     );
   }
 
   return (
     <div className="app-shell">
-      <main className="app-main">
-        <header className="app-header">
-          <div>
-            <div className="header-title">{view === "home" ? "工作台" : view === "chat" ? "AI" : view === "memory" ? "记忆" : "设置"}</div>
-            {view === "home" && (
-              <div className="header-subtitle">
-                {health?.configured ? "AI 已就绪" : "AI 待配置"} · {health?.model || "正在同步"}
-              </div>
-            )}
-          </div>
-          <button className="icon-button" onClick={() => void refresh()} disabled={loading} aria-label="同步">
-            {loading ? "…" : "↻"}
-          </button>
-        </header>
+      <header className="topbar">
+        <button className="brand-button" onClick={() => setView("chat")} aria-label="返回聊天">
+          <span className="db-logo">DB<span>♡</span></span>
+          <span className="brand-copy">
+            <strong>{view === "chat" ? "DB" : "日历"}</strong>
+            <small>
+              {view === "chat"
+                ? `${health?.configured ? "AI 在线" : "AI 待配置"} · ${health?.model || "同步中"}`
+                : monthTitle(calendarMonth)}
+            </small>
+          </span>
+        </button>
+        <button className="round-button" onClick={() => setPanel("settings")} aria-label="设置">•••</button>
+      </header>
 
-        {notice && <div className="toast">{notice}</div>}
-        {error && <div className="inline-alert error top-alert">{error}</div>}
+      {notice && <div className="toast">{notice}</div>}
+      {error && <div className="alert error floating-alert">{error}</div>}
 
-        {view === "home" && (
-          <HomeView
-            overview={overview}
-            totalEntries={totalEntries}
-            totalMemories={totalMemories}
-            message={message}
-            setMessage={setMessage}
-            onSend={handleSend}
-            sending={sending}
-            onOpenChat={() => setView("chat")}
-            onRole={(role) => {
-              setActiveRole(role);
-              setMemoryMode("memory");
-              setView("memory");
-            }}
-          />
-        )}
-
-        {view === "chat" && (
+      <main className={view === "chat" ? "main chat-main" : "main calendar-main"}>
+        {view === "chat" ? (
           <ChatView
-            history={history}
-            lastReply={lastReply}
+            history={sortedHistory}
+            loading={loading}
             message={message}
             setMessage={setMessage}
             onSend={handleSend}
             sending={sending}
+            chatEndRef={chatEndRef}
+            lastCalendarActions={lastCalendarActions}
+            lastActionEntryId={lastActionEntryId}
+            onCalendarEvent={openCalendarForEvent}
           />
-        )}
-
-        {view === "memory" && (
-          <MemoryView
-            activeRole={activeRole}
-            setActiveRole={setActiveRole}
-            mode={memoryMode}
-            setMode={setMemoryMode}
-            memories={memories}
-            metrics={metrics}
-            loading={loading}
-          />
-        )}
-
-        {view === "settings" && (
-          <SettingsView
-            nativeShell={nativeShell}
-            health={health}
-            aiSettings={aiSettings}
-            setAISettings={setAISettings}
-            aiApiKey={aiApiKey}
-            setAiApiKey={setAiApiKey}
-            onProviderChange={changeProvider}
-            onTestAI={testAI}
-            onSaveAI={saveAI}
-            onClearAIKey={clearAIKey}
-            aiTesting={aiTesting}
-            aiSaving={aiSaving}
-            tokenExpiry={getTokenExpiry()}
-            onExport={() => void exportData()}
-            onLogout={logout}
+        ) : (
+          <CalendarView
+            month={calendarMonth}
+            setMonth={setCalendarMonth}
+            selectedDate={selectedDate}
+            setSelectedDate={setSelectedDate}
+            eventsByDate={eventsByDate}
+            selectedEvents={selectedEvents}
+            loading={calendarLoading}
+            onNew={() => setEventDraft(makeDraft(selectedDate))}
+            onEdit={(event) => setEventDraft(makeDraft(selectedDate, event))}
+            onDelete={(event) => void deleteEvent(event)}
+            onToggleComplete={(event) => void toggleComplete(event)}
           />
         )}
       </main>
 
       <nav className="tab-bar" aria-label="主导航">
-        <TabButton active={view === "home"} icon="⌂" label="首页" onClick={() => setView("home")} />
-        <TabButton active={view === "chat"} icon="✦" label="AI" onClick={() => setView("chat")} />
-        <TabButton active={view === "memory"} icon="◎" label="记忆" onClick={() => setView("memory")} />
-        <TabButton active={view === "settings"} icon="⚙" label="设置" onClick={() => setView("settings")} />
+        <button className={view === "chat" ? "active" : ""} onClick={() => setView("chat")}>
+          <span className="tab-icon">◌</span>
+          <span>聊天</span>
+        </button>
+        <button className={view === "calendar" ? "active" : ""} onClick={() => setView("calendar")}>
+          <span className="tab-icon">▦</span>
+          <span>日历</span>
+        </button>
       </nav>
-    </div>
-  );
-}
 
-function HomeView({
-  overview,
-  totalEntries,
-  totalMemories,
-  message,
-  setMessage,
-  onSend,
-  sending,
-  onOpenChat,
-  onRole,
-}: {
-  overview: Overview | null;
-  totalEntries: number;
-  totalMemories: number;
-  message: string;
-  setMessage: (value: string) => void;
-  onSend: (event?: FormEvent) => void;
-  sending: boolean;
-  onOpenChat: () => void;
-  onRole: (role: Role) => void;
-}) {
-  return (
-    <>
-      <section className="capture-card">
-        <h1>现在想处理什么？</h1>
-        <p>直接说。系统会自己判断该交给哪个角色，并决定什么值得长期记住。</p>
-        <Composer message={message} setMessage={setMessage} onSend={onSend} sending={sending} />
-      </section>
-
-      <section className="mini-stats" aria-label="数据概览">
-        <div><strong>{totalEntries}</strong><span>累计记录</span></div>
-        <div><strong>{totalMemories}</strong><span>长期记忆</span></div>
-        <div><strong>{overview?.latestMetrics?.length || 0}</strong><span>近期指标</span></div>
-      </section>
-
-      <section className="role-strip">
-        {roleKeys.map((role) => (
-          <button key={role} onClick={() => onRole(role)}>
-            <span>{ROLES[role].icon}</span>
-            <span>{ROLES[role].short}</span>
-            <small>{overview?.counts[role] || 0}</small>
-          </button>
-        ))}
-      </section>
-
-      <section className="content-section">
-        <div className="section-title-row">
-          <h2>最近</h2>
-          <button className="text-button" onClick={onOpenChat}>全部记录</button>
-        </div>
-        <div className="recent-list">
-          {(overview?.recent || []).slice(0, 5).map((entry) => (
-            <EntryRow key={entry.id} entry={entry} />
-          ))}
-          {!overview?.recent?.length && <EmptyState text="还没有记录。第一条输入会从这里开始。" />}
-        </div>
-      </section>
-
-      {!!overview?.latestMetrics?.length && (
-        <section className="content-section">
-          <div className="section-title-row"><h2>最近指标</h2></div>
-          <div className="metric-strip">
-            {overview.latestMetrics.slice(0, 4).map((metric) => (
-              <div className="metric-chip" key={metric.id}>
-                <span>{metric.name}</span>
-                <strong>{metric.value}{metric.unit ? ` ${metric.unit}` : ""}</strong>
-              </div>
-            ))}
-          </div>
-        </section>
+      {eventDraft && (
+        <EventEditor
+          draft={eventDraft}
+          setDraft={setEventDraft}
+          onClose={() => setEventDraft(null)}
+          onSave={() => void saveEventDraft()}
+          saving={eventSaving}
+        />
       )}
-    </>
+
+      {undoEvent && (
+        <div className="undo-bar">
+          <span>已删除「{undoEvent.title}」</span>
+          <button onClick={() => void undoDelete()}>撤销</button>
+        </div>
+      )}
+    </div>
   );
 }
 
 function ChatView({
   history,
-  lastReply,
+  loading,
   message,
   setMessage,
   onSend,
   sending,
+  chatEndRef,
+  lastCalendarActions,
+  lastActionEntryId,
+  onCalendarEvent,
 }: {
   history: Entry[];
-  lastReply: Entry | null;
+  loading: boolean;
   message: string;
   setMessage: (value: string) => void;
   onSend: (event?: FormEvent) => void;
   sending: boolean;
+  chatEndRef: RefObject<HTMLDivElement | null>;
+  lastCalendarActions: CalendarActionResult[];
+  lastActionEntryId: string;
+  onCalendarEvent: (event: CalendarEvent) => void;
 }) {
   return (
     <section className="chat-page">
-      <div className="chat-list">
-        {lastReply && <ReplyCard entry={lastReply} featured />}
-        {history
-          .filter((entry) => entry.id !== lastReply?.id)
-          .map((entry) => <ReplyCard key={entry.id} entry={entry} />)}
-        {!history.length && !lastReply && <EmptyState text="这里是完整对话时间线。直接在下方开始。" />}
+      <div className="chat-scroll">
+        {!history.length && !loading && (
+          <div className="chat-welcome">
+            <div className="welcome-mark">DB</div>
+            <p className="eyebrow">PRIVATE AI</p>
+            <h1>{greeting()}<br />今天想聊什么？</h1>
+            <p>聊天、计划、健康记录、工作复盘、灵感或日程，直接说就好。</p>
+            <div className="prompt-row">
+              <button onClick={() => setMessage("帮我整理一下今天最重要的三件事")}>整理今天</button>
+              <button onClick={() => setMessage("我明天有哪些安排？")}>查看明天</button>
+              <button onClick={() => setMessage("帮我记录一个新的灵感")}>记录灵感</button>
+            </div>
+          </div>
+        )}
+
+        {history.map((entry) => (
+          <div className="conversation-pair" key={entry.id}>
+            <div className="message-row user-row">
+              <div className="message-bubble user-bubble">{entry.user_text}</div>
+            </div>
+            <div className="message-row ai-row">
+              <div className="ai-avatar">DB</div>
+              <div className="ai-stack">
+                <div className="message-meta">
+                  <span>{ROLES[entry.role].short}</span>
+                  <time>{friendlyDateTime(entry.created_at)}</time>
+                </div>
+                <div className="message-bubble ai-bubble">{entry.assistant_text}</div>
+                {entry.health_signal !== "none" && (
+                  <div className={`health-inline ${entry.health_signal}`}>
+                    {entry.health_signal === "urgent" ? "这条信息包含需要尽快线下处理的健康风险。" : "这条健康信息建议结合实际情况持续观察。"}
+                  </div>
+                )}
+                {entry.id === lastActionEntryId && lastCalendarActions.length > 0 && (
+                  <div className="calendar-action-list">
+                    {lastCalendarActions.map((action, index) => (
+                      <button
+                        key={`${action.action}-${index}`}
+                        className={action.ok ? "calendar-action-card ok" : "calendar-action-card failed"}
+                        onClick={() => action.ok && action.event && onCalendarEvent(action.event)}
+                        disabled={!action.ok || !action.event}
+                      >
+                        <span className="calendar-action-icon">{action.ok ? "✓" : "!"}</span>
+                        <span>
+                          <strong>{action.message}</strong>
+                          {action.event && <small>{friendlyDateTime(action.event.start_at)} · {CATEGORY_META[action.event.category].label}</small>}
+                        </span>
+                        {action.ok && action.event && <span>›</span>}
+                      </button>
+                    ))}
+                  </div>
+                )}
+              </div>
+            </div>
+          </div>
+        ))}
+
+        {sending && (
+          <div className="message-row ai-row typing-row">
+            <div className="ai-avatar">DB</div>
+            <div className="typing-bubble"><i /><i /><i /></div>
+          </div>
+        )}
+        <div ref={chatEndRef} />
       </div>
-      <div className="chat-composer">
-        <Composer compact message={message} setMessage={setMessage} onSend={onSend} sending={sending} />
+
+      <form className="composer" onSubmit={onSend}>
+        <textarea
+          value={message}
+          onChange={(e) => setMessage(e.target.value)}
+          placeholder="和 DB 聊点什么…"
+          rows={1}
+          onKeyDown={(e) => {
+            if (e.key === "Enter" && !e.shiftKey) {
+              e.preventDefault();
+              onSend();
+            }
+          }}
+        />
+        <button type="submit" className="send-button" disabled={!message.trim() || sending} aria-label="发送">↑</button>
+      </form>
+    </section>
+  );
+}
+
+function CalendarView({
+  month,
+  setMonth,
+  selectedDate,
+  setSelectedDate,
+  eventsByDate,
+  selectedEvents,
+  loading,
+  onNew,
+  onEdit,
+  onDelete,
+  onToggleComplete,
+}: {
+  month: Date;
+  setMonth: (month: Date) => void;
+  selectedDate: string;
+  setSelectedDate: (date: string) => void;
+  eventsByDate: Map<string, CalendarEvent[]>;
+  selectedEvents: CalendarEvent[];
+  loading: boolean;
+  onNew: () => void;
+  onEdit: (event: CalendarEvent) => void;
+  onDelete: (event: CalendarEvent) => void;
+  onToggleComplete: (event: CalendarEvent) => void;
+}) {
+  const cells = calendarCells(month);
+  const today = dateKey(new Date());
+  const selected = new Date(`${selectedDate}T12:00:00`);
+  const selectedLabel = new Intl.DateTimeFormat("zh-CN", {
+    month: "long",
+    day: "numeric",
+    weekday: "short",
+  }).format(selected);
+
+  return (
+    <section className="calendar-page">
+      <div className="month-card">
+        <div className="month-toolbar">
+          <button onClick={() => setMonth(addMonths(month, -1))} aria-label="上个月">‹</button>
+          <strong>{monthTitle(month)}</strong>
+          <button onClick={() => setMonth(addMonths(month, 1))} aria-label="下个月">›</button>
+        </div>
+        <div className="weekday-row">
+          {['日', '一', '二', '三', '四', '五', '六'].map((day) => <span key={day}>{day}</span>)}
+        </div>
+        <div className="month-grid">
+          {cells.map((day) => {
+            const key = dateKey(day);
+            const dayEvents = eventsByDate.get(key) || [];
+            const uniqueCats = [...new Set(dayEvents.map((event) => event.category))].slice(0, 4);
+            const isCurrentMonth = day.getMonth() === month.getMonth();
+            const isToday = key === today;
+            const isSelected = key === selectedDate;
+            return (
+              <button
+                key={key}
+                className={`day-cell ${!isCurrentMonth ? "muted" : ""} ${isToday ? "today" : ""} ${isSelected ? "selected" : ""}`}
+                onClick={() => setSelectedDate(key)}
+              >
+                <span className="day-number">{day.getDate()}</span>
+                <span className="event-dots">
+                  {uniqueCats.map((category) => (
+                    <i key={category} style={{ background: CATEGORY_META[category].color }} />
+                  ))}
+                </span>
+              </button>
+            );
+          })}
+        </div>
+      </div>
+
+      <div className="agenda-section">
+        <div className="agenda-heading">
+          <div>
+            <p className="eyebrow">AGENDA</p>
+            <h2>{selectedLabel}{selectedDate === today ? " · 今天" : ""}</h2>
+          </div>
+          <button className="add-event-button" onClick={onNew}>＋</button>
+        </div>
+
+        {loading && !selectedEvents.length && <div className="empty-card">正在同步日历…</div>}
+        {!loading && !selectedEvents.length && (
+          <button className="empty-card add-empty" onClick={onNew}>
+            <span>＋</span>
+            <strong>这天还没有安排</strong>
+            <small>点这里添加，或直接在聊天里告诉 DB。</small>
+          </button>
+        )}
+
+        <div className="agenda-list">
+          {selectedEvents.map((event) => (
+            <SwipeableEventCard
+              key={event.id}
+              event={event}
+              onEdit={() => onEdit(event)}
+              onDelete={() => onDelete(event)}
+              onToggleComplete={() => onToggleComplete(event)}
+            />
+          ))}
+        </div>
       </div>
     </section>
   );
 }
 
-function MemoryView({
-  activeRole,
-  setActiveRole,
-  mode,
-  setMode,
-  memories,
-  metrics,
-  loading,
+function SwipeableEventCard({
+  event,
+  onEdit,
+  onDelete,
+  onToggleComplete,
 }: {
-  activeRole: Role | "all";
-  setActiveRole: (role: Role | "all") => void;
-  mode: MemoryMode;
-  setMode: (mode: MemoryMode) => void;
-  memories: MemoryItem[];
-  metrics: Metric[];
-  loading: boolean;
+  event: CalendarEvent;
+  onEdit: () => void;
+  onDelete: () => void;
+  onToggleComplete: () => void;
 }) {
+  const [offset, setOffset] = useState(0);
+  const startX = useRef(0);
+  const startOffset = useRef(0);
+  const moved = useRef(false);
+
+  function pointerDown(e: ReactPointerEvent<HTMLDivElement>) {
+    startX.current = e.clientX;
+    startOffset.current = offset;
+    moved.current = false;
+    e.currentTarget.setPointerCapture(e.pointerId);
+  }
+
+  function pointerMove(e: ReactPointerEvent<HTMLDivElement>) {
+    const delta = e.clientX - startX.current;
+    if (Math.abs(delta) > 5) moved.current = true;
+    const next = Math.max(-96, Math.min(96, startOffset.current + delta));
+    setOffset(next);
+  }
+
+  function pointerUp() {
+    if (offset <= -76) {
+      setOffset(0);
+      onDelete();
+      return;
+    }
+    if (offset >= 76) {
+      setOffset(0);
+      onToggleComplete();
+      return;
+    }
+    if (offset < -34) setOffset(-68);
+    else if (offset > 34) setOffset(68);
+    else setOffset(0);
+  }
+
   return (
-    <>
-      <div className="segmented">
-        <button className={mode === "memory" ? "active" : ""} onClick={() => setMode("memory")}>长期记忆</button>
-        <button className={mode === "metric" ? "active" : ""} onClick={() => setMode("metric")}>指标</button>
-      </div>
-
-      <div className="filter-scroll">
-        <button className={activeRole === "all" ? "active" : ""} onClick={() => setActiveRole("all")}>全部</button>
-        {roleKeys.map((role) => (
-          <button key={role} className={activeRole === role ? "active" : ""} onClick={() => setActiveRole(role)}>
-            {ROLES[role].short}
-          </button>
-        ))}
-      </div>
-
-      {mode === "memory" ? (
-        <div className="memory-list">
-          {memories.map((memory) => (
-            <article className="memory-card" key={memory.id}>
-              <div className="card-meta">
-                <span>{ROLES[memory.role].icon} {ROLES[memory.role].short}</span>
-                <span>重要度 {memory.importance}/5</span>
-              </div>
-              <p>{memory.content}</p>
-              <small>{memory.kind} · 更新于 {friendlyDate(memory.last_seen_at)}</small>
-            </article>
-          ))}
-          {!memories.length && !loading && <EmptyState text="还没有长期记忆。系统只保存未来仍有用的信息。" />}
+    <div className={`swipe-shell ${event.status === "completed" ? "completed" : ""}`}>
+      <button className="swipe-action left" onClick={onToggleComplete}>
+        <span>{event.status === "completed" ? "↺" : "✓"}</span>
+        <small>{event.status === "completed" ? "恢复" : "完成"}</small>
+      </button>
+      <button className="swipe-action right" onClick={onDelete}>
+        <span>⌫</span>
+        <small>删除</small>
+      </button>
+      <div
+        className="event-card"
+        style={{ transform: `translateX(${offset}px)` }}
+        onPointerDown={pointerDown}
+        onPointerMove={pointerMove}
+        onPointerUp={pointerUp}
+        onPointerCancel={() => setOffset(0)}
+        onClick={() => {
+          if (!moved.current && Math.abs(offset) < 8) onEdit();
+        }}
+      >
+        <span className={`category-line ${CATEGORY_META[event.category].className}`} />
+        <div className="event-card-main">
+          <div className="event-title-row">
+            <h3>{event.title}</h3>
+            <span className={`category-pill ${CATEGORY_META[event.category].className}`}>
+              {CATEGORY_META[event.category].label}
+            </span>
+          </div>
+          <div className="event-time">{event.status === "completed" ? "✓ " : ""}{friendlyTime(event)}</div>
+          {event.note && <p>{event.note}</p>}
         </div>
-      ) : (
-        <div className="metric-list">
-          {metrics.map((metric) => (
-            <article className="metric-row" key={metric.id}>
-              <div>
-                <span>{metric.name}</span>
-                <small>{ROLES[metric.role].short} · {friendlyDate(metric.recorded_at)}</small>
-              </div>
-              <strong>{metric.value}{metric.unit ? ` ${metric.unit}` : ""}</strong>
-              {metric.note && <p>{metric.note}</p>}
-            </article>
-          ))}
-          {!metrics.length && !loading && <EmptyState text="还没有可追踪指标。数字型健康、运营或进度信息会自动沉淀到这里。" />}
-        </div>
-      )}
-    </>
+      </div>
+    </div>
   );
 }
 
-function SettingsView({
+function EventEditor({
+  draft,
+  setDraft,
+  onClose,
+  onSave,
+  saving,
+}: {
+  draft: EventDraft;
+  setDraft: (draft: EventDraft) => void;
+  onClose: () => void;
+  onSave: () => void;
+  saving: boolean;
+}) {
+  return (
+    <div className="modal-backdrop" onMouseDown={(e) => e.target === e.currentTarget && onClose()}>
+      <div className="bottom-sheet event-editor">
+        <div className="sheet-handle" />
+        <div className="sheet-toolbar">
+          <button onClick={onClose}>取消</button>
+          <strong>{draft.id ? "编辑日程" : "新建日程"}</strong>
+          <button className="pink-text" onClick={onSave} disabled={!draft.title.trim() || saving}>
+            {saving ? "保存中" : "保存"}
+          </button>
+        </div>
+
+        <label className="field large-field">
+          <span>标题</span>
+          <input
+            value={draft.title}
+            onChange={(e) => setDraft({ ...draft, title: e.target.value })}
+            placeholder="要做什么？"
+            autoFocus
+          />
+        </label>
+
+        <div className="field">
+          <span>分类</span>
+          <div className="category-picker">
+            {CATEGORY_KEYS.map((category) => (
+              <button
+                key={category}
+                className={draft.category === category ? `active ${CATEGORY_META[category].className}` : ""}
+                onClick={() => setDraft({ ...draft, category })}
+              >
+                <i style={{ background: CATEGORY_META[category].color }} />
+                {CATEGORY_META[category].label}
+              </button>
+            ))}
+          </div>
+        </div>
+
+        <div className="editor-row">
+          <label className="field">
+            <span>日期</span>
+            <input type="date" value={draft.date} onChange={(e) => setDraft({ ...draft, date: e.target.value })} />
+          </label>
+          <label className="toggle-field">
+            <span>全天</span>
+            <input type="checkbox" checked={draft.allDay} onChange={(e) => setDraft({ ...draft, allDay: e.target.checked })} />
+          </label>
+        </div>
+
+        {!draft.allDay && (
+          <div className="editor-row two">
+            <label className="field">
+              <span>开始</span>
+              <input type="time" value={draft.startTime} onChange={(e) => setDraft({ ...draft, startTime: e.target.value })} />
+            </label>
+            <label className="field">
+              <span>结束</span>
+              <input type="time" value={draft.endTime} onChange={(e) => setDraft({ ...draft, endTime: e.target.value })} />
+            </label>
+          </div>
+        )}
+
+        <label className="field">
+          <span>备注</span>
+          <textarea
+            value={draft.note}
+            onChange={(e) => setDraft({ ...draft, note: e.target.value })}
+            placeholder="地点、准备事项或补充说明（可选）"
+            rows={3}
+          />
+        </label>
+      </div>
+    </div>
+  );
+}
+
+function SettingsPanel({
+  onBack,
   nativeShell,
   health,
   aiSettings,
@@ -620,197 +1119,208 @@ function SettingsView({
   onProviderChange,
   onTestAI,
   onSaveAI,
-  onClearAIKey,
   aiTesting,
   aiSaving,
-  tokenExpiry,
+  onOpenMemory,
   onExport,
   onLogout,
+  notice,
+  error,
 }: {
+  onBack: () => void;
   nativeShell: boolean;
   health: HealthResponse | null;
   aiSettings: AISettings;
-  setAISettings: (value: AISettings) => void;
+  setAISettings: (settings: AISettings) => void;
   aiApiKey: string;
   setAiApiKey: (value: string) => void;
   onProviderChange: (provider: AISettings["provider"]) => void;
   onTestAI: () => void;
   onSaveAI: () => void;
-  onClearAIKey: () => void;
   aiTesting: boolean;
   aiSaving: boolean;
-  tokenExpiry: number;
+  onOpenMemory: () => void;
   onExport: () => void;
   onLogout: () => void;
+  notice: string;
+  error: string;
 }) {
-  const expiresText = tokenExpiry
-    ? new Intl.DateTimeFormat("zh-CN", { month: "numeric", day: "numeric" }).format(new Date(tokenExpiry))
+  const expiry = getTokenExpiry();
+  const expiryText = expiry
+    ? new Intl.DateTimeFormat("zh-CN", { month: "long", day: "numeric" }).format(new Date(expiry))
     : "—";
 
   return (
-    <div className="settings-page">
-      <section className="settings-section">
-        <div className="settings-heading">
-          <div><h2>AI 模型</h2><p>网页端修改后立即生效，不需要重新编译 IPA。</p></div>
-          <span className={`status-badge ${health?.configured ? "ok" : "warn"}`}>
-            {health?.configured ? "已就绪" : "待配置"}
-          </span>
-        </div>
+    <div className="panel-page">
+      <header className="panel-header">
+        <button className="back-button" onClick={onBack}>‹</button>
+        <strong>设置</strong>
+        <span className="panel-spacer" />
+      </header>
+      {notice && <div className="toast">{notice}</div>}
+      {error && <div className="alert error panel-alert">{error}</div>}
+      <main className="panel-content">
+        <section className="settings-hero">
+          <div className="db-logo medium">DB<span>♡</span></div>
+          <div>
+            <h1>DB 工作台</h1>
+            <p>{health?.configured ? "AI 已连接" : "AI 需要配置"} · {providerName(health?.provider)}</p>
+          </div>
+        </section>
 
-        <label className="field">
-          <span>提供商</span>
-          <select value={aiSettings.provider} onChange={(e) => onProviderChange(e.target.value as AISettings["provider"])}>
-            <option value="workers-ai">Cloudflare Workers AI</option>
-            <option value="openai-responses">OpenAI Responses API</option>
-            <option value="openai-compatible">OpenAI 兼容 API</option>
-          </select>
-        </label>
+        <section className="settings-card">
+          <div className="settings-card-title">
+            <div><p className="eyebrow">AI</p><h2>模型与 API</h2></div>
+            <span className={`status-dot-label ${health?.configured ? "ok" : "warn"}`}>{health?.configured ? "可用" : "待配置"}</span>
+          </div>
 
-        {aiSettings.provider !== "workers-ai" && (
           <label className="field">
-            <span>API 地址</span>
+            <span>AI 提供商</span>
+            <select value={aiSettings.provider} onChange={(e) => onProviderChange(e.target.value as AISettings["provider"])}>
+              <option value="workers-ai">Cloudflare Workers AI</option>
+              <option value="openai-responses">OpenAI Responses API</option>
+              <option value="openai-compatible">OpenAI 兼容 API</option>
+            </select>
+          </label>
+
+          {aiSettings.provider !== "workers-ai" && (
+            <label className="field">
+              <span>API 地址</span>
+              <input
+                value={aiSettings.base_url}
+                onChange={(e) => setAISettings({ ...aiSettings, base_url: e.target.value })}
+                placeholder="https://api.openai.com/v1"
+                inputMode="url"
+              />
+            </label>
+          )}
+
+          <label className="field">
+            <span>模型名称</span>
             <input
-              value={aiSettings.base_url}
-              onChange={(e) => setAISettings({ ...aiSettings, base_url: e.target.value })}
-              placeholder={aiSettings.provider === "openai-responses" ? "https://api.openai.com/v1" : "https://example.com/v1"}
-              inputMode="url"
+              value={aiSettings.model}
+              onChange={(e) => setAISettings({ ...aiSettings, model: e.target.value })}
+              placeholder="模型名称"
             />
           </label>
-        )}
 
-        <label className="field">
-          <span>模型名称</span>
-          <input
-            value={aiSettings.model}
-            onChange={(e) => setAISettings({ ...aiSettings, model: e.target.value })}
-            placeholder={aiSettings.provider === "workers-ai" ? "@cf/meta/..." : "例如 gpt-5.6"}
-            autoCapitalize="none"
-            autoCorrect="off"
-          />
-        </label>
+          {aiSettings.provider !== "workers-ai" && (
+            <label className="field">
+              <span>API Key {aiSettings.has_api_key ? "· 已保存" : ""}</span>
+              <input
+                type="password"
+                value={aiApiKey}
+                onChange={(e) => setAiApiKey(e.target.value)}
+                placeholder={aiSettings.has_api_key ? "留空则继续使用已保存 Key" : "输入 API Key"}
+                autoComplete="off"
+              />
+            </label>
+          )}
 
-        {aiSettings.provider !== "workers-ai" && (
-          <label className="field">
-            <span>API key</span>
-            <input
-              type="password"
-              value={aiApiKey}
-              onChange={(e) => setAiApiKey(e.target.value)}
-              placeholder={aiSettings.has_api_key ? "已保存；留空表示不修改" : "请输入 API key"}
-              autoComplete="off"
-            />
-            <small>密钥只发送到你的 Worker，并加密后存入 D1；前端不会读取已保存的明文。</small>
-          </label>
-        )}
+          <div className="settings-actions">
+            <button className="secondary-button" onClick={onTestAI} disabled={aiTesting || aiSaving}>{aiTesting ? "测试中…" : "测试连接"}</button>
+            <button className="primary-button compact" onClick={onSaveAI} disabled={aiSaving || aiTesting}>{aiSaving ? "保存中…" : "保存"}</button>
+          </div>
+        </section>
 
-        <div className="button-row">
-          <button className="secondary-button" onClick={onTestAI} disabled={aiTesting || aiSaving || !aiSettings.model.trim()}>
-            {aiTesting ? "测试中…" : "测试连接"}
+        <section className="settings-list-card">
+          <button onClick={onOpenMemory}>
+            <span className="settings-row-icon pink">◎</span>
+            <span><strong>长期记忆与指标</strong><small>查看 AI 自动沉淀的长期信息</small></span>
+            <b>›</b>
           </button>
-          <button className="primary-button" onClick={onSaveAI} disabled={aiSaving || aiTesting || !aiSettings.model.trim()}>
-            {aiSaving ? "保存中…" : "保存"}
+          <button onClick={onExport}>
+            <span className="settings-row-icon blue">⇩</span>
+            <span><strong>导出全部数据</strong><small>聊天、日程、记忆、指标 JSON 备份</small></span>
+            <b>›</b>
           </button>
-        </div>
-        {aiSettings.provider !== "workers-ai" && aiSettings.has_api_key && (
-          <button className="danger-text" onClick={onClearAIKey} disabled={aiSaving}>清除已保存 API key</button>
-        )}
-      </section>
+          {nativeShell && (
+            <button onClick={openNativeShellSettings}>
+              <span className="settings-row-icon purple">⌁</span>
+              <span><strong>App 连接</strong><small>修改服务器域名或重新验证口令</small></span>
+              <b>›</b>
+            </button>
+          )}
+        </section>
 
-      <section className="settings-section compact-settings">
-        <div className="settings-row">
-          <div><strong>当前连接</strong><span>{location.origin}</span></div>
-          {nativeShell && <button className="secondary-button small" onClick={openNativeShellSettings}>修改 App 连接</button>}
-        </div>
-        <div className="settings-row">
-          <div><strong>免密登录</strong><span>有效至 {expiresText}</span></div>
-          <button className="text-button danger" onClick={nativeShell ? openNativeShellSettings : onLogout}>{nativeShell ? "重新登录" : "退出"}</button>
-        </div>
-        <div className="settings-row">
-          <div><strong>数据备份</strong><span>聊天、记忆、指标与非敏感 AI 配置</span></div>
-          <button className="secondary-button small" onClick={onExport}>导出 JSON</button>
-        </div>
-      </section>
+        <section className="settings-list-card">
+          <div className="static-settings-row">
+            <span className="settings-row-icon green">✓</span>
+            <span><strong>30 天免密</strong><small>当前登录有效至 {expiryText}</small></span>
+          </div>
+          <button className="danger-row" onClick={onLogout}>
+            <span className="settings-row-icon red">↗</span>
+            <span><strong>退出登录</strong><small>清除此设备上的访问口令</small></span>
+            <b>›</b>
+          </button>
+        </section>
 
-      <section className="settings-note">
-        <strong>健康咨询边界</strong>
-        <p>健康角色用于信息整理、一般性建议和趋势追踪，不替代医生诊断。出现急症或危险信号时会优先建议线下就医。</p>
-      </section>
+        <p className="settings-footnote">业务界面和 AI 功能都从服务器更新；iOS 壳无需随网页版本反复安装。</p>
+      </main>
     </div>
   );
 }
 
-function ReplyCard({ entry, featured = false }: { entry: Entry; featured?: boolean }) {
-  const tags = parseTags(entry);
-  return (
-    <article className={`reply-card ${featured ? "featured" : ""}`}>
-      <div className="card-meta">
-        <span>{ROLES[entry.role].icon} {ROLES[entry.role].name}</span>
-        <span>{friendlyDate(entry.created_at)}</span>
-      </div>
-      <h3>{entry.title}</h3>
-      <div className="user-message">{entry.user_text}</div>
-      <div className="assistant-message">{entry.assistant_text}</div>
-      {!!tags.length && <div className="tag-row">{tags.slice(0, 4).map((tag) => <span key={tag}>{tag}</span>)}</div>}
-      {entry.health_signal !== "none" && (
-        <div className="health-alert">健康信息仅作一般性参考；症状明显加重或出现危险信号时请及时就医。</div>
-      )}
-    </article>
-  );
-}
-
-function EntryRow({ entry }: { entry: Entry }) {
-  return (
-    <article className="entry-row">
-      <div className="entry-icon">{ROLES[entry.role].icon}</div>
-      <div className="entry-content"><strong>{entry.title}</strong><p>{entry.summary}</p></div>
-      <time>{friendlyDate(entry.created_at).split(" ")[0]}</time>
-    </article>
-  );
-}
-
-function Composer({
-  message,
-  setMessage,
-  onSend,
-  sending,
-  compact = false,
+function MemoryPanel({
+  onBack,
+  mode,
+  setMode,
+  activeRole,
+  setActiveRole,
+  memories,
+  metrics,
 }: {
-  message: string;
-  setMessage: (value: string) => void;
-  onSend: (event?: FormEvent) => void;
-  sending: boolean;
-  compact?: boolean;
+  onBack: () => void;
+  mode: MemoryMode;
+  setMode: (mode: MemoryMode) => void;
+  activeRole: Role | "all";
+  setActiveRole: (role: Role | "all") => void;
+  memories: MemoryItem[];
+  metrics: Metric[];
 }) {
   return (
-    <form className={`composer ${compact ? "compact" : ""}`} onSubmit={onSend}>
-      <textarea
-        value={message}
-        onChange={(e) => setMessage(e.target.value)}
-        placeholder="直接输入问题、想法或记录…"
-        rows={compact ? 2 : 3}
-        onKeyDown={(e) => {
-          if ((e.metaKey || e.ctrlKey) && e.key === "Enter") {
-            e.preventDefault();
-            onSend();
-          }
-        }}
-      />
-      <div className="composer-footer">
-        <span>自动判断归属</span>
-        <button type="submit" disabled={sending || !message.trim()}>{sending ? "…" : "↑"}</button>
-      </div>
-    </form>
-  );
-}
+    <div className="panel-page">
+      <header className="panel-header">
+        <button className="back-button" onClick={onBack}>‹</button>
+        <strong>长期记忆</strong>
+        <span className="panel-spacer" />
+      </header>
+      <main className="panel-content memory-panel-content">
+        <div className="segmented-control">
+          <button className={mode === "memory" ? "active" : ""} onClick={() => setMode("memory")}>记忆</button>
+          <button className={mode === "metric" ? "active" : ""} onClick={() => setMode("metric")}>指标</button>
+        </div>
+        <div className="chip-scroll">
+          <button className={activeRole === "all" ? "active" : ""} onClick={() => setActiveRole("all")}>全部</button>
+          {ROLE_KEYS.map((role) => (
+            <button key={role} className={activeRole === role ? "active" : ""} onClick={() => setActiveRole(role)}>{ROLES[role].short}</button>
+          ))}
+        </div>
 
-function TabButton({ active, icon, label, onClick }: { active: boolean; icon: string; label: string; onClick: () => void }) {
-  return (
-    <button className={active ? "active" : ""} onClick={onClick}>
-      <span className="tab-icon">{icon}</span><span>{label}</span>
-    </button>
+        {mode === "memory" ? (
+          <div className="memory-stack">
+            {memories.map((item) => (
+              <article className="memory-item" key={item.id}>
+                <div className="memory-meta"><span>{ROLES[item.role].short}</span><span>重要度 {item.importance}/5</span></div>
+                <p>{item.content}</p>
+                <small>{item.kind} · 更新于 {friendlyDateTime(item.last_seen_at)}</small>
+              </article>
+            ))}
+            {!memories.length && <div className="empty-card">还没有长期记忆。聊天中稳定的偏好、目标和项目状态会自动出现在这里。</div>}
+          </div>
+        ) : (
+          <div className="memory-stack">
+            {metrics.map((item) => (
+              <article className="metric-item" key={item.id}>
+                <div><span>{item.name}</span><small>{ROLES[item.role].short} · {friendlyDateTime(item.recorded_at)}</small></div>
+                <strong>{item.value}{item.unit ? ` ${item.unit}` : ""}</strong>
+                {item.note && <p>{item.note}</p>}
+              </article>
+            ))}
+            {!metrics.length && <div className="empty-card">还没有可追踪指标。睡眠、体重、运营数据等数字信息会自动沉淀。</div>}
+          </div>
+        )}
+      </main>
+    </div>
   );
-}
-
-function EmptyState({ text }: { text: string }) {
-  return <div className="empty-state">{text}</div>;
 }

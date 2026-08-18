@@ -8,35 +8,66 @@ struct SetupView: View {
 
     enum Field { case domain, token }
 
+    private let pink = Color(red: 0.97, green: 0.34, blue: 0.59)
+    private let softPink = Color(red: 1.0, green: 0.91, blue: 0.95)
+
     var body: some View {
         NavigationStack {
-            ScrollView {
-                VStack(spacing: 0) {
-                    Spacer(minLength: 52)
+            ZStack {
+                Color(uiColor: .systemGroupedBackground).ignoresSafeArea()
+                Circle()
+                    .fill(pink.opacity(0.12))
+                    .frame(width: 320, height: 320)
+                    .blur(radius: 4)
+                    .offset(x: 150, y: -330)
+                Circle()
+                    .fill(softPink.opacity(0.42))
+                    .frame(width: 280, height: 280)
+                    .offset(x: -150, y: 380)
 
-                    Text("AI")
-                        .font(.system(size: 22, weight: .bold, design: .rounded))
-                        .foregroundStyle(.white)
-                        .frame(width: 76, height: 76)
-                        .background(Color.primary)
-                        .clipShape(RoundedRectangle(cornerRadius: 22, style: .continuous))
-                        .shadow(color: .black.opacity(0.13), radius: 20, y: 12)
+                ScrollView {
+                    VStack(spacing: 0) {
+                        Spacer(minLength: 56)
 
-                    Text("私人 AI 工作台")
-                        .font(.system(size: 30, weight: .bold, design: .rounded))
-                        .padding(.top, 24)
+                        ZStack(alignment: .topTrailing) {
+                            Text("DB")
+                                .font(.system(size: 24, weight: .heavy, design: .rounded))
+                                .foregroundStyle(pink)
+                                .frame(width: 78, height: 78)
+                                .background(
+                                    LinearGradient(
+                                        colors: [Color.white, softPink, pink.opacity(0.26)],
+                                        startPoint: .topLeading,
+                                        endPoint: .bottomTrailing
+                                    )
+                                )
+                                .clipShape(RoundedRectangle(cornerRadius: 24, style: .continuous))
+                                .overlay(
+                                    RoundedRectangle(cornerRadius: 24, style: .continuous)
+                                        .stroke(pink.opacity(0.18), lineWidth: 1)
+                                )
+                                .shadow(color: pink.opacity(0.18), radius: 24, y: 12)
 
-                    Text("这个 App 只是一层安全外壳。网页功能以后在线更新，不需要反复安装 IPA。")
-                        .font(.system(size: 14))
-                        .foregroundStyle(.secondary)
-                        .multilineTextAlignment(.center)
-                        .lineSpacing(4)
-                        .padding(.top, 10)
-                        .padding(.horizontal, 18)
+                            Image(systemName: "heart.fill")
+                                .font(.system(size: 10, weight: .bold))
+                                .foregroundStyle(pink)
+                                .offset(x: 4, y: -5)
+                        }
 
-                    VStack(spacing: 14) {
-                        VStack(alignment: .leading, spacing: 7) {
-                            Text("工作台地址").font(.caption).foregroundStyle(.secondary)
+                        Text("DB 工作台")
+                            .font(.system(size: 31, weight: .bold, design: .rounded))
+                            .padding(.top, 24)
+
+                        Text("输入你的工作台域名和访问口令。验证一次后，这个壳就会长期加载服务器上的最新界面。")
+                            .font(.system(size: 14))
+                            .foregroundStyle(.secondary)
+                            .multilineTextAlignment(.center)
+                            .lineSpacing(4)
+                            .padding(.top, 10)
+                            .padding(.horizontal, 18)
+
+                        VStack(spacing: 14) {
+                            fieldTitle("工作台地址")
                             TextField("https://db.dubin.cc.cd", text: $domain)
                                 .textInputAutocapitalization(.never)
                                 .keyboardType(.URL)
@@ -44,70 +75,91 @@ struct SetupView: View {
                                 .focused($focusedField, equals: .domain)
                                 .submitLabel(.next)
                                 .onSubmit { focusedField = .token }
-                                .padding(.horizontal, 14)
-                                .frame(height: 50)
-                                .background(Color(uiColor: .secondarySystemBackground))
-                                .clipShape(RoundedRectangle(cornerRadius: 14, style: .continuous))
-                        }
+                                .padding(.horizontal, 15)
+                                .frame(height: 52)
+                                .background(Color(uiColor: .secondarySystemBackground).opacity(0.9))
+                                .clipShape(RoundedRectangle(cornerRadius: 16, style: .continuous))
+                                .overlay(
+                                    RoundedRectangle(cornerRadius: 16, style: .continuous)
+                                        .stroke(pink.opacity(0.12), lineWidth: 1)
+                                )
 
-                        VStack(alignment: .leading, spacing: 7) {
-                            Text("访问口令").font(.caption).foregroundStyle(.secondary)
+                            fieldTitle("访问口令")
+                                .padding(.top, 2)
                             SecureField("私人访问口令", text: $token)
                                 .textContentType(.password)
                                 .focused($focusedField, equals: .token)
                                 .submitLabel(.go)
                                 .onSubmit { Task { await connect() } }
-                                .padding(.horizontal, 14)
-                                .frame(height: 50)
-                                .background(Color(uiColor: .secondarySystemBackground))
-                                .clipShape(RoundedRectangle(cornerRadius: 14, style: .continuous))
-                        }
+                                .padding(.horizontal, 15)
+                                .frame(height: 52)
+                                .background(Color(uiColor: .secondarySystemBackground).opacity(0.9))
+                                .clipShape(RoundedRectangle(cornerRadius: 16, style: .continuous))
+                                .overlay(
+                                    RoundedRectangle(cornerRadius: 16, style: .continuous)
+                                        .stroke(pink.opacity(0.12), lineWidth: 1)
+                                )
 
-                        if !store.errorMessage.isEmpty {
-                            Text(store.errorMessage)
-                                .font(.caption)
-                                .foregroundStyle(.red)
-                                .frame(maxWidth: .infinity, alignment: .leading)
-                                .padding(12)
-                                .background(Color.red.opacity(0.07))
-                                .clipShape(RoundedRectangle(cornerRadius: 12, style: .continuous))
-                        }
-
-                        Button {
-                            Task { await connect() }
-                        } label: {
-                            HStack(spacing: 8) {
-                                if store.isLoading { ProgressView().tint(.white) }
-                                Text(store.isLoading ? "正在验证…" : "连接并进入")
+                            if !store.errorMessage.isEmpty {
+                                Text(store.errorMessage)
+                                    .font(.caption)
+                                    .foregroundStyle(.red)
+                                    .frame(maxWidth: .infinity, alignment: .leading)
+                                    .padding(12)
+                                    .background(Color.red.opacity(0.07))
+                                    .clipShape(RoundedRectangle(cornerRadius: 13, style: .continuous))
                             }
-                            .fontWeight(.semibold)
-                            .frame(maxWidth: .infinity)
-                            .frame(height: 50)
+
+                            Button {
+                                Task { await connect() }
+                            } label: {
+                                HStack(spacing: 8) {
+                                    if store.isLoading { ProgressView().tint(.white) }
+                                    Text(store.isLoading ? "正在验证…" : "连接并进入")
+                                }
+                                .fontWeight(.semibold)
+                                .frame(maxWidth: .infinity)
+                                .frame(height: 52)
+                            }
+                            .buttonStyle(.plain)
+                            .foregroundStyle(.white)
+                            .background(
+                                LinearGradient(
+                                    colors: [Color(red: 1.0, green: 0.47, blue: 0.68), pink],
+                                    startPoint: .topLeading,
+                                    endPoint: .bottomTrailing
+                                )
+                            )
+                            .clipShape(RoundedRectangle(cornerRadius: 16, style: .continuous))
+                            .shadow(color: pink.opacity(0.22), radius: 18, y: 8)
+                            .disabled(store.isLoading || domain.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty || token.isEmpty)
                         }
-                        .buttonStyle(.plain)
-                        .foregroundStyle(Color(uiColor: .systemBackground))
-                        .background(Color.primary)
-                        .clipShape(RoundedRectangle(cornerRadius: 14, style: .continuous))
-                        .disabled(store.isLoading || domain.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty || token.isEmpty)
+                        .padding(.top, 34)
+
+                        Label("口令保存在 Keychain，验证后 30 天免密", systemImage: "lock.shield.fill")
+                            .font(.caption2)
+                            .foregroundStyle(.tertiary)
+                            .padding(.top, 17)
+
+                        Spacer(minLength: 40)
                     }
-                    .padding(.top, 34)
-
-                    Label("验证成功后使用 Keychain 保存口令，30 天内免密登录", systemImage: "lock.shield")
-                        .font(.caption2)
-                        .foregroundStyle(.tertiary)
-                        .padding(.top, 16)
-
-                    Spacer(minLength: 40)
+                    .frame(maxWidth: 440)
+                    .padding(.horizontal, 22)
+                    .frame(maxWidth: .infinity)
                 }
-                .frame(maxWidth: 440)
-                .padding(.horizontal, 22)
-                .frame(maxWidth: .infinity)
             }
-            .background(Color(uiColor: .systemGroupedBackground))
             .onAppear {
                 if domain.isEmpty { domain = store.domain }
             }
         }
+    }
+
+    @ViewBuilder
+    private func fieldTitle(_ text: String) -> some View {
+        Text(text)
+            .font(.caption)
+            .foregroundStyle(.secondary)
+            .frame(maxWidth: .infinity, alignment: .leading)
     }
 
     private func connect() async {

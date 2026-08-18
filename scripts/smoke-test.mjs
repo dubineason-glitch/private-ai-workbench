@@ -59,4 +59,40 @@ if (!settingsJson.provider || !settingsJson.model) {
   throw new Error(`AI settings returned invalid payload: ${settingsText}`);
 }
 console.log(`✓ AI settings: ${settingsJson.provider} / ${settingsJson.model}`);
+const now = new Date();
+const later = new Date(now.getTime() + 30 * 60 * 1000);
+const testTitle = `__smoke_calendar_${Date.now()}`;
+const created = await fetchRetry(`${base}/api/events`, {
+  method: "POST",
+  headers: { ...headers, "Content-Type": "application/json" },
+  body: JSON.stringify({
+    title: testTitle,
+    note: "deployment smoke test",
+    start_at: now.toISOString(),
+    end_at: later.toISOString(),
+    all_day: false,
+    category: "other",
+    timezone: "UTC",
+  }),
+});
+const createdText = await created.text();
+if (!created.ok) throw new Error(`Calendar create failed: ${created.status} ${createdText}`);
+const createdJson = JSON.parse(createdText);
+if (!createdJson.event?.id) throw new Error(`Calendar create returned invalid payload: ${createdText}`);
+const testEventId = createdJson.event.id;
+console.log(`✓ Calendar create: ${testEventId}`);
+
+const completed = await fetchRetry(`${base}/api/events/${encodeURIComponent(testEventId)}/complete`, {
+  method: "POST",
+  headers,
+});
+if (!completed.ok) throw new Error(`Calendar complete failed: ${completed.status} ${await completed.text()}`);
+console.log("✓ Calendar complete");
+
+const deleted = await fetchRetry(`${base}/api/events/${encodeURIComponent(testEventId)}`, {
+  method: "DELETE",
+  headers,
+});
+if (!deleted.ok) throw new Error(`Calendar delete failed: ${deleted.status} ${await deleted.text()}`);
+console.log("✓ Calendar soft delete");
 console.log(`\nDEPLOYMENT_OK=${base}`);

@@ -12,6 +12,8 @@ interface Env {
 type Role = "media" | "health" | "daily" | "interior" | "journal";
 type HealthSignal = "none" | "caution" | "urgent";
 type AIProvider = "workers-ai" | "openai-responses" | "openai-compatible";
+type EventCategory = "work" | "study" | "life" | "health" | "inspiration" | "other";
+type EventStatus = "pending" | "completed" | "deleted";
 
 type MemoryExtraction = {
   kind: "preference" | "fact" | "goal" | "project" | "metric_context" | "note";
@@ -26,6 +28,33 @@ type MetricExtraction = {
   note: string;
 };
 
+type CalendarActionExtraction = {
+  action: "create" | "complete" | "delete";
+  event_id: string;
+  title: string;
+  note: string;
+  start_at: string;
+  end_at: string;
+  all_day: boolean;
+  category: EventCategory;
+};
+
+type CalendarEventRow = {
+  id: string;
+  title: string;
+  note: string;
+  start_at: string;
+  end_at: string;
+  all_day: number;
+  category: EventCategory;
+  status: EventStatus;
+  source: string;
+  timezone: string;
+  created_at: string;
+  updated_at: string;
+  completed_at?: string | null;
+};
+
 type AIResult = {
   role: Role;
   title: string;
@@ -35,6 +64,7 @@ type AIResult = {
   health_signal: HealthSignal;
   memory_items: MemoryExtraction[];
   metrics: MetricExtraction[];
+  calendar_actions: CalendarActionExtraction[];
 };
 
 type AISettings = {
@@ -61,8 +91,18 @@ type AISavePayload = {
   clear_api_key?: unknown;
 };
 
+type AIContext = {
+  recent: unknown[];
+  memories: unknown[];
+  metrics: unknown[];
+  calendar: unknown[];
+  now: string;
+  timezone: string;
+};
+
 const ROLE_VALUES: Role[] = ["media", "health", "daily", "interior", "journal"];
 const PROVIDERS: AIProvider[] = ["workers-ai", "openai-responses", "openai-compatible"];
+const EVENT_CATEGORIES: EventCategory[] = ["work", "study", "life", "health", "inspiration", "other"];
 const JSON_HEADERS = { "Content-Type": "application/json; charset=utf-8" };
 const DEFAULT_WORKERS_MODEL = "@cf/meta/llama-3.3-70b-instruct-fp8-fast";
 const DEFAULT_OPENAI_MODEL = "gpt-5.6";
@@ -107,6 +147,24 @@ const schema = {
         additionalProperties: false,
       },
     },
+    calendar_actions: {
+      type: "array",
+      items: {
+        type: "object",
+        properties: {
+          action: { type: "string", enum: ["create", "complete", "delete"] },
+          event_id: { type: "string" },
+          title: { type: "string" },
+          note: { type: "string" },
+          start_at: { type: "string" },
+          end_at: { type: "string" },
+          all_day: { type: "boolean" },
+          category: { type: "string", enum: EVENT_CATEGORIES },
+        },
+        required: ["action", "event_id", "title", "note", "start_at", "end_at", "all_day", "category"],
+        additionalProperties: false,
+      },
+    },
   },
   required: [
     "role",
@@ -117,6 +175,7 @@ const schema = {
     "health_signal",
     "memory_items",
     "metrics",
+    "calendar_actions",
   ],
   additionalProperties: false,
 };
@@ -142,13 +201,22 @@ const systemPrompt = `你是“私人 AI 工作台”的统一智能中枢。用
 - importance 1-5：5=长期高影响；3=普通长期信息；1-2 仅在确有复用价值时使用。
 - 数值型进度/健康/运营指标可放 metrics；没有就返回空数组。
 
+日历与日程：
+- 你可以读取上下文中的 calendar（近期日程），用它回答“今天/明天/这周有什么安排”等问题。
+- 只有当用户明确表达“安排、提醒、加入日历、记到日程”等意图，并且日期/时间足够明确时，才输出 calendar_actions 的 create。
+- create 时 event_id 必须为空字符串；title 简洁；start_at/end_at 使用 ISO 8601，必须带时区偏移；如果用户只给日期没有时间，可设 all_day=true，并使用当天 00:00 到次日 00:00 的区间。
+- category 只能是 work/study/life/health/inspiration/other，按语义自动分类。
+- complete/delete 只能引用上下文中真实存在的 event_id；如果无法唯一判断是哪条日程，不要执行，直接在 reply 中追问。
+- 用户只是查询或讨论日程时不要产生变更动作。
+- 不要在 reply 中虚构“已经成功写入/删除/完成”；实际执行结果会由系统在界面中单独显示。
+
 输出：
 - title 简短，像时间线标题。
 - reply 是完整直接的最终答复，避免空泛套话。
 - summary 1-2 句，供长期回顾。
 - tags 2-5 个短标签。
 - health_signal 只能是 none/caution/urgent。
-- memory_items 与 metrics 可为空。
+- memory_items、metrics、calendar_actions 都可为空。
 - 必须严格输出符合给定 JSON Schema 的 JSON，不要加 Markdown 代码块或额外文字。`;
 
 export default {
@@ -199,6 +267,24 @@ export default {
           return await handleMetrics(request, env, url);
         }
 
+        if (url.pathname === "/api/events" && request.method === "GET") {
+          return await handleEventsList(request, env, url);
+        }
+
+        if (url.pathname === "/api/events" && request.method === "POST") {
+          return await handleEventCreate(request, env);
+        }
+
+        const eventRoute = url.pathname.match(/^\/api\/events\/([^/]+)(?:\/(complete|reopen|restore))?$/);
+        if (eventRoute) {
+          const eventId = decodeURIComponent(eventRoute[1]);
+          const action = eventRoute[2] || "";
+          if (!action && request.method === "PUT") return await handleEventUpdate(request, env, eventId);
+          if (!action && request.method === "DELETE") return await handleEventDelete(request, env, eventId);
+          if (action === "complete" && request.method === "POST") return await handleEventStatus(request, env, eventId, "completed");
+          if ((action === "reopen" || action === "restore") && request.method === "POST") return await handleEventStatus(request, env, eventId, "pending");
+        }
+
         if (url.pathname === "/api/settings/ai" && request.method === "GET") {
           return await handleGetAISettings(request, env);
         }
@@ -242,6 +328,7 @@ function friendlyServerError(message: string) {
   if (message.includes("模型")) return message;
   if (message.includes("AI 配置")) return message;
   if (message.includes("请求失败")) return message;
+  if (message.includes("日程")) return message;
   return "服务器处理失败，请稍后重试";
 }
 
@@ -259,15 +346,22 @@ function safeEqual(a: string, b: string) {
 }
 
 async function handleChat(request: Request, env: Env) {
-  const body = (await request.json().catch(() => null)) as { message?: unknown } | null;
+  const body = (await request.json().catch(() => null)) as {
+    message?: unknown;
+    now?: unknown;
+    timezone?: unknown;
+  } | null;
   const message = typeof body?.message === "string" ? body.message.trim() : "";
+  const now = normalizeDateTime(typeof body?.now === "string" ? body.now : new Date().toISOString());
+  const timezone = sanitizeTimezone(typeof body?.timezone === "string" ? body.timezone : "UTC");
   if (!message) return json({ error: "请输入内容" }, 400, request);
   if (message.length > 12000) {
     return json({ error: "单条输入过长，请控制在 12000 字符以内" }, 413, request);
   }
 
-  const [context, settings] = await Promise.all([loadContext(env.DB), getAISettings(env)]);
+  const [context, settings] = await Promise.all([loadContext(env.DB, now, timezone), getAISettings(env)]);
   const aiResult = await callAI(env, settings, message, context);
+  const calendarActions = await applyCalendarActions(env.DB, aiResult.calendar_actions, timezone);
 
   const entryId = crypto.randomUUID();
   await env.DB.prepare(
@@ -334,11 +428,17 @@ async function handleChat(request: Request, env: Env) {
   }
 
   const entry = await env.DB.prepare(`SELECT * FROM entries WHERE id = ?`).bind(entryId).first();
-  return json({ entry, memories_added: memoriesAdded, metrics_added: metricsAdded }, 200, request);
+  return json(
+    { entry, memories_added: memoriesAdded, metrics_added: metricsAdded, calendar_actions: calendarActions },
+    200,
+    request,
+  );
 }
 
-async function loadContext(db: D1Database) {
-  const [recent, memories, metrics] = await Promise.all([
+async function loadContext(db: D1Database, now: string, timezone: string): Promise<AIContext> {
+  const upcomingEnd = new Date(new Date(now).getTime() + 45 * 86400000).toISOString();
+  const recentStart = new Date(new Date(now).getTime() - 2 * 86400000).toISOString();
+  const [recent, memories, metrics, calendar] = await Promise.all([
     db.prepare(
       `SELECT role, title, user_text, summary, created_at
        FROM entries ORDER BY created_at DESC LIMIT 12`,
@@ -351,12 +451,21 @@ async function loadContext(db: D1Database) {
       `SELECT role, name, value, unit, note, recorded_at
        FROM metrics ORDER BY recorded_at DESC LIMIT 20`,
     ).all(),
+    db.prepare(
+      `SELECT id, title, note, start_at, end_at, all_day, category, status, timezone
+       FROM calendar_events
+       WHERE status != 'deleted' AND end_at >= ? AND start_at <= ?
+       ORDER BY start_at ASC LIMIT 60`,
+    ).bind(recentStart, upcomingEnd).all(),
   ]);
 
   return {
     recent: recent.results,
     memories: memories.results,
     metrics: metrics.results,
+    calendar: calendar.results,
+    now,
+    timezone,
   };
 }
 
@@ -364,7 +473,7 @@ async function callAI(
   env: Env,
   settings: AISettings,
   message: string,
-  context: { recent: unknown[]; memories: unknown[]; metrics: unknown[] },
+  context: AIContext,
 ): Promise<AIResult> {
   if (settings.provider === "workers-ai") {
     return callWorkersAI(env, settings.model, message, context);
@@ -380,15 +489,15 @@ async function callAI(
   return callOpenAICompatible(settings, apiKey, message, context);
 }
 
-function buildContextText(context: { recent: unknown[]; memories: unknown[]; metrics: unknown[] }) {
-  return `下面是用户此前的结构化上下文，只用于保持连续性；如与本次明确输入冲突，以本次输入为准。\n${JSON.stringify(context)}`;
+function buildContextText(context: AIContext) {
+  return `当前时间：${context.now}\n用户时区：${context.timezone}\n下面是用户此前的结构化上下文与近期日程，只用于保持连续性；如与本次明确输入冲突，以本次输入为准。\n${JSON.stringify(context)}`;
 }
 
 async function callWorkersAI(
   env: Env,
   model: string,
   message: string,
-  context: { recent: unknown[]; memories: unknown[]; metrics: unknown[] },
+  context: AIContext,
 ): Promise<AIResult> {
   const result = await env.AI.run(model as any, {
     messages: [
@@ -411,7 +520,7 @@ async function callOpenAIResponses(
   settings: AISettings,
   apiKey: string,
   message: string,
-  context: { recent: unknown[]; memories: unknown[]; metrics: unknown[] },
+  context: AIContext,
 ): Promise<AIResult> {
   const base = normalizeBaseUrl(settings.base_url || DEFAULT_OPENAI_BASE);
   const response = await fetch(`${base}/responses`, {
@@ -451,7 +560,7 @@ async function callOpenAICompatible(
   settings: AISettings,
   apiKey: string,
   message: string,
-  context: { recent: unknown[]; memories: unknown[]; metrics: unknown[] },
+  context: AIContext,
 ): Promise<AIResult> {
   const base = normalizeBaseUrl(settings.base_url);
   const url = `${base}/chat/completions`;
@@ -509,6 +618,9 @@ function parseAIResult(raw: unknown): AIResult {
       : "none",
     memory_items: Array.isArray(parsed.memory_items) ? (parsed.memory_items as MemoryExtraction[]) : [],
     metrics: Array.isArray(parsed.metrics) ? (parsed.metrics as MetricExtraction[]) : [],
+    calendar_actions: Array.isArray(parsed.calendar_actions)
+      ? (parsed.calendar_actions as CalendarActionExtraction[]).slice(0, 6)
+      : [],
   };
 }
 
@@ -572,6 +684,231 @@ async function handleMetrics(request: Request, env: Env, url: URL) {
       ).bind(role).all()
     : await env.DB.prepare(`SELECT * FROM metrics ORDER BY recorded_at DESC LIMIT 360`).all();
   return json({ metrics: result.results }, 200, request);
+}
+
+
+type CalendarActionResult = {
+  action: "create" | "complete" | "delete";
+  ok: boolean;
+  event?: CalendarEventRow;
+  message: string;
+};
+
+type CalendarPayload = {
+  title: string;
+  note: string;
+  start_at: string;
+  end_at: string;
+  all_day: boolean;
+  category: EventCategory;
+  timezone: string;
+};
+
+async function handleEventsList(request: Request, env: Env, url: URL) {
+  const now = new Date();
+  const defaultStart = new Date(now.getFullYear(), now.getMonth(), 1).toISOString();
+  const defaultEnd = new Date(now.getFullYear(), now.getMonth() + 2, 1).toISOString();
+  const start = normalizeDateTime(url.searchParams.get("start") || defaultStart);
+  const end = normalizeDateTime(url.searchParams.get("end") || defaultEnd);
+  if (new Date(end).getTime() <= new Date(start).getTime()) {
+    return json({ error: "日程查询时间范围不正确" }, 400, request);
+  }
+
+  const result = await env.DB.prepare(
+    `SELECT * FROM calendar_events
+     WHERE status != 'deleted' AND end_at > ? AND start_at < ?
+     ORDER BY start_at ASC, created_at ASC
+     LIMIT 600`,
+  ).bind(start, end).all<CalendarEventRow>();
+
+  return json({ events: result.results }, 200, request);
+}
+
+async function handleEventCreate(request: Request, env: Env) {
+  const body = (await request.json().catch(() => null)) as Record<string, unknown> | null;
+  if (!body) return json({ error: "日程内容格式不正确" }, 400, request);
+  const payload = normalizeCalendarPayload(body, "UTC");
+  const event = await insertCalendarEvent(env.DB, payload, "manual");
+  return json({ event }, 201, request);
+}
+
+async function handleEventUpdate(request: Request, env: Env, eventId: string) {
+  const existing = await getCalendarEvent(env.DB, eventId);
+  if (!existing || existing.status === "deleted") return json({ error: "日程不存在" }, 404, request);
+  const body = (await request.json().catch(() => null)) as Record<string, unknown> | null;
+  if (!body) return json({ error: "日程内容格式不正确" }, 400, request);
+  const payload = normalizeCalendarPayload(body, existing.timezone || "UTC");
+
+  await env.DB.prepare(
+    `UPDATE calendar_events
+     SET title = ?, note = ?, start_at = ?, end_at = ?, all_day = ?, category = ?, timezone = ?, updated_at = datetime('now')
+     WHERE id = ?`,
+  ).bind(
+    payload.title,
+    payload.note,
+    payload.start_at,
+    payload.end_at,
+    payload.all_day ? 1 : 0,
+    payload.category,
+    payload.timezone,
+    eventId,
+  ).run();
+
+  const event = await getCalendarEvent(env.DB, eventId);
+  return json({ event }, 200, request);
+}
+
+async function handleEventDelete(request: Request, env: Env, eventId: string) {
+  const existing = await getCalendarEvent(env.DB, eventId);
+  if (!existing || existing.status === "deleted") return json({ error: "日程不存在" }, 404, request);
+  await env.DB.prepare(
+    `UPDATE calendar_events SET status = 'deleted', updated_at = datetime('now') WHERE id = ?`,
+  ).bind(eventId).run();
+  const event = await getCalendarEvent(env.DB, eventId);
+  return json({ event }, 200, request);
+}
+
+async function handleEventStatus(
+  request: Request,
+  env: Env,
+  eventId: string,
+  status: "pending" | "completed",
+) {
+  const existing = await getCalendarEvent(env.DB, eventId);
+  if (!existing) return json({ error: "日程不存在" }, 404, request);
+  const completedAt = status === "completed" ? new Date().toISOString() : null;
+  await env.DB.prepare(
+    `UPDATE calendar_events
+     SET status = ?, completed_at = ?, updated_at = datetime('now')
+     WHERE id = ?`,
+  ).bind(status, completedAt, eventId).run();
+  const event = await getCalendarEvent(env.DB, eventId);
+  return json({ event }, 200, request);
+}
+
+async function applyCalendarActions(
+  db: D1Database,
+  actions: CalendarActionExtraction[],
+  fallbackTimezone: string,
+): Promise<CalendarActionResult[]> {
+  const results: CalendarActionResult[] = [];
+
+  for (const action of actions.slice(0, 6)) {
+    try {
+      if (action.action === "create") {
+        const payload = normalizeCalendarPayload(action as unknown as Record<string, unknown>, fallbackTimezone);
+        const event = await insertCalendarEvent(db, payload, "ai");
+        results.push({ action: "create", ok: true, event, message: `已加入日历：${event.title}` });
+        continue;
+      }
+
+      const eventId = String(action.event_id || "").trim();
+      if (!eventId) {
+        results.push({ action: action.action, ok: false, message: "未找到可操作的日程" });
+        continue;
+      }
+      const existing = await getCalendarEvent(db, eventId);
+      if (!existing || existing.status === "deleted") {
+        results.push({ action: action.action, ok: false, message: "对应日程已不存在" });
+        continue;
+      }
+
+      if (action.action === "complete") {
+        await db.prepare(
+          `UPDATE calendar_events SET status = 'completed', completed_at = ?, updated_at = datetime('now') WHERE id = ?`,
+        ).bind(new Date().toISOString(), eventId).run();
+        const event = await getCalendarEvent(db, eventId);
+        results.push({ action: "complete", ok: true, event: event || undefined, message: `已完成：${existing.title}` });
+        continue;
+      }
+
+      if (action.action === "delete") {
+        await db.prepare(
+          `UPDATE calendar_events SET status = 'deleted', updated_at = datetime('now') WHERE id = ?`,
+        ).bind(eventId).run();
+        const event = await getCalendarEvent(db, eventId);
+        results.push({ action: "delete", ok: true, event: event || undefined, message: `已删除：${existing.title}` });
+      }
+    } catch (error) {
+      results.push({
+        action: action.action,
+        ok: false,
+        message: error instanceof Error ? error.message : "日程操作失败",
+      });
+    }
+  }
+
+  return results;
+}
+
+function normalizeCalendarPayload(body: Record<string, unknown>, fallbackTimezone: string): CalendarPayload {
+  const title = typeof body.title === "string" ? body.title.trim().slice(0, 160) : "";
+  if (!title) throw new Error("日程标题不能为空");
+
+  const allDay = body.all_day === true || body.all_day === 1 || body.all_day === "1";
+  const startAt = normalizeDateTime(typeof body.start_at === "string" ? body.start_at : "");
+  let endAt = normalizeDateTime(typeof body.end_at === "string" ? body.end_at : "");
+  const startMs = new Date(startAt).getTime();
+  let endMs = new Date(endAt).getTime();
+  if (endMs <= startMs) {
+    endMs = startMs + (allDay ? 86400000 : 3600000);
+    endAt = new Date(endMs).toISOString();
+  }
+
+  const categoryRaw = typeof body.category === "string" ? body.category : "life";
+  const category = EVENT_CATEGORIES.includes(categoryRaw as EventCategory)
+    ? (categoryRaw as EventCategory)
+    : "other";
+  const timezone = sanitizeTimezone(
+    typeof body.timezone === "string" && body.timezone.trim() ? body.timezone : fallbackTimezone,
+  );
+
+  return {
+    title,
+    note: typeof body.note === "string" ? body.note.trim().slice(0, 1200) : "",
+    start_at: startAt,
+    end_at: endAt,
+    all_day: allDay,
+    category,
+    timezone,
+  };
+}
+
+function normalizeDateTime(value: string) {
+  const date = new Date(value);
+  if (!value || Number.isNaN(date.getTime())) throw new Error("日程时间格式不正确");
+  return date.toISOString();
+}
+
+function sanitizeTimezone(value: string) {
+  const clean = value.trim().slice(0, 80);
+  return clean && /^[A-Za-z0-9_+\-/]+$/.test(clean) ? clean : "UTC";
+}
+
+async function insertCalendarEvent(db: D1Database, payload: CalendarPayload, source: "manual" | "ai") {
+  const id = crypto.randomUUID();
+  await db.prepare(
+    `INSERT INTO calendar_events
+     (id, title, note, start_at, end_at, all_day, category, status, source, timezone)
+     VALUES (?, ?, ?, ?, ?, ?, ?, 'pending', ?, ?)`,
+  ).bind(
+    id,
+    payload.title,
+    payload.note,
+    payload.start_at,
+    payload.end_at,
+    payload.all_day ? 1 : 0,
+    payload.category,
+    source,
+    payload.timezone,
+  ).run();
+  const event = await getCalendarEvent(db, id);
+  if (!event) throw new Error("日程创建失败");
+  return event;
+}
+
+async function getCalendarEvent(db: D1Database, id: string) {
+  return db.prepare(`SELECT * FROM calendar_events WHERE id = ? LIMIT 1`).bind(id).first<CalendarEventRow>();
 }
 
 async function handleGetAISettings(request: Request, env: Env) {
@@ -787,19 +1124,21 @@ function base64ToBytes(value: string) {
 }
 
 async function handleExport(request: Request, env: Env) {
-  const [entries, memories, metrics, aiSettings] = await Promise.all([
+  const [entries, memories, metrics, calendarEvents, aiSettings] = await Promise.all([
     env.DB.prepare(`SELECT * FROM entries ORDER BY created_at ASC`).all(),
     env.DB.prepare(`SELECT * FROM memories ORDER BY created_at ASC`).all(),
     env.DB.prepare(`SELECT * FROM metrics ORDER BY recorded_at ASC`).all(),
+    env.DB.prepare(`SELECT * FROM calendar_events ORDER BY start_at ASC`).all(),
     getAISettings(env),
   ]);
   return json(
     {
       exported_at: new Date().toISOString(),
-      version: 2,
+      version: 3,
       entries: entries.results,
       memories: memories.results,
       metrics: metrics.results,
+      calendar_events: calendarEvents.results,
       ai_settings: await publicAISettings(env, aiSettings),
     },
     200,

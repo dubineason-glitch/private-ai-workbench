@@ -24,12 +24,13 @@ if (!db) {
   db = dbs.find((item) => item.name === DB_NAME);
 }
 
-if (!db?.uuid) {
-  throw new Error("Unable to resolve D1 database UUID");
+const databaseId = db?.uuid || db?.database_id;
+if (!databaseId) {
+  throw new Error("Unable to resolve D1 database ID");
 }
 
 const path = "wrangler.jsonc";
 let config = fs.readFileSync(path, "utf8");
-config = config.replace(/"database_id":\s*"[^"]+"/, `"database_id": "${db.uuid}"`);
+config = config.replace(/"database_id":\s*"[^"]+"/, `"database_id": "${databaseId}"`);
 fs.writeFileSync(path, config);
-console.log(`D1 ready: ${db.uuid}`);
+console.log(`D1 ready: ${databaseId}`);

@@ -1,38 +1,9 @@
-# 现在怎么更新
+# v2.0 更新步骤
 
-## 1. 覆盖 GitHub 仓库
-
-把本版本 ZIP 解压后，完整覆盖仓库根目录并提交到 `main`。
-
-## 2. 等 Deploy Cloudflare 全绿
-
-`Actions → Deploy Cloudflare`
-
-如果你已经绑定自定义域名 `https://db.dubin.cc.cd`，Cloudflare 会继续保留该路由。
-
-## 3. 网页里配置 AI
-
-打开：
-
-`https://db.dubin.cc.cd`
-
-进入：
-
-`设置 → AI 模型`
-
-选择提供商，填写模型/API 地址/API key，先「测试连接」，成功后「保存」。
-
-## 4. iOS 壳只编译一次
-
-`Actions → Build iOS Shell IPA → Run workflow`
-
-下载 Artifact：
-
-`PrivateAIWorkbench-Shell-unsigned-ipa`
-
-自签安装后，首次启动输入：
-
-- 工作台地址：`https://db.dubin.cc.cd`
-- 访问口令：GitHub Secret `APP_TOKEN` 对应的值
-
-验证成功后 30 天免密。以后网页功能更新只需要 GitHub push → Cloudflare 自动部署，不需要重新编译或重装 IPA。
+1. 将本 ZIP 解压后覆盖 GitHub 仓库根目录，提交到 `main`。
+2. 等待 `Actions → Deploy Cloudflare` 全绿。`0003_calendar.sql` 会自动创建日历表。
+3. 打开 `https://db.dubin.cc.cd`：默认首页现在就是聊天，底部只有“聊天 / 日历”。
+4. 右上角 `•••` 进入设置，配置或测试 AI 模型。
+5. 在聊天中测试：“明天下午 3 点提醒我开会”，应出现“已加入日历”的动作卡片并同步到日历。
+6. 日历卡片：左滑删除，右滑完成；删除后可点底部“撤销”。
+7. iOS 壳不需要因为这次 Web UI 更新重新安装；只有你还没安装过壳，才手动运行 `Build iOS Shell IPA`。

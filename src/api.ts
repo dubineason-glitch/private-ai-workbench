@@ -2,6 +2,8 @@ import type {
   AISavePayload,
   AISettings,
   AITestResult,
+  CalendarEvent,
+  CalendarEventInput,
   ChatResponse,
   HealthResponse,
   MemoryItem,
@@ -17,9 +19,7 @@ const LOGIN_DAYS = 30;
 
 export function getSavedToken() {
   const token = localStorage.getItem(TOKEN_KEY) || "";
-  const rawExpiry = localStorage.getItem(TOKEN_EXPIRY_KEY) || "";
-  const expiry = Number(rawExpiry);
-
+  const expiry = Number(localStorage.getItem(TOKEN_EXPIRY_KEY) || "0");
   if (!token) return "";
   if (Number.isFinite(expiry) && expiry > 0 && Date.now() >= expiry) {
     clearSavedToken();
@@ -40,7 +40,7 @@ export function saveToken(token: string, days = LOGIN_DAYS) {
     return;
   }
   localStorage.setItem(TOKEN_KEY, clean);
-  localStorage.setItem(TOKEN_EXPIRY_KEY, String(Date.now() + days * 24 * 60 * 60 * 1000));
+  localStorage.setItem(TOKEN_EXPIRY_KEY, String(Date.now() + days * 86400000));
 }
 
 export function clearSavedToken() {
@@ -85,7 +85,6 @@ async function request<T>(path: string, init: RequestInit = {}): Promise<T> {
 export async function verifyToken(token: string) {
   const cleanToken = token.trim();
   if (!cleanToken) throw new Error("请输入访问口令");
-
   const response = await fetch(`${API_BASE}/api/health`, {
     method: "GET",
     headers: {
@@ -93,10 +92,13 @@ export async function verifyToken(token: string) {
       "x-workbench-token": cleanToken,
     },
   });
-
   const data = await response.json().catch(() => ({}));
   if (!response.ok) throw new Error(data.error || `验证失败 (${response.status})`);
   return data as HealthResponse;
+}
+
+function eventPath(id: string, suffix = "") {
+  return `/api/events/${encodeURIComponent(id)}${suffix}`;
 }
 
 export const api = {
@@ -105,7 +107,11 @@ export const api = {
   chat: (message: string) =>
     request<ChatResponse>("/api/chat", {
       method: "POST",
-      body: JSON.stringify({ message }),
+      body: JSON.stringify({
+        message,
+        now: new Date().toISOString(),
+        timezone: Intl.DateTimeFormat().resolvedOptions().timeZone || "UTC",
+      }),
     }),
   history: (role?: Role) =>
     request<{ entries: import("./types").Entry[] }>(
@@ -119,6 +125,28 @@ export const api = {
     request<{ metrics: Metric[] }>(
       `/api/metrics${role ? `?role=${role}` : ""}`,
     ),
+  events: (start: string, end: string) =>
+    request<{ events: CalendarEvent[] }>(
+      `/api/events?start=${encodeURIComponent(start)}&end=${encodeURIComponent(end)}`,
+    ),
+  createEvent: (payload: CalendarEventInput) =>
+    request<{ event: CalendarEvent }>("/api/events", {
+      method: "POST",
+      body: JSON.stringify(payload),
+    }),
+  updateEvent: (id: string, payload: CalendarEventInput) =>
+    request<{ event: CalendarEvent }>(eventPath(id), {
+      method: "PUT",
+      body: JSON.stringify(payload),
+    }),
+  deleteEvent: (id: string) =>
+    request<{ event: CalendarEvent }>(eventPath(id), { method: "DELETE" }),
+  restoreEvent: (id: string) =>
+    request<{ event: CalendarEvent }>(eventPath(id, "/restore"), { method: "POST" }),
+  completeEvent: (id: string) =>
+    request<{ event: CalendarEvent }>(eventPath(id, "/complete"), { method: "POST" }),
+  reopenEvent: (id: string) =>
+    request<{ event: CalendarEvent }>(eventPath(id, "/reopen"), { method: "POST" }),
   aiSettings: () => request<AISettings>("/api/settings/ai"),
   saveAISettings: (payload: AISavePayload) =>
     request<AISettings>("/api/settings/ai", {

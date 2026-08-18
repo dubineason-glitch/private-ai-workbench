@@ -1,14 +1,36 @@
-# 私人 AI 工作台 v1.0
+# DB 私人 AI 工作台 v2.0
 
-一个单用户、长期积累的私人 AI 工作台：Cloudflare Worker + D1 + React Web App，配一个可长期复用的原生 iOS WebView 壳。
+一个以 **聊天 + 日历** 为核心的单用户私人 AI 工作台。产品本体运行在 Cloudflare，iOS IPA 只是长期复用的 WebView 安全壳。
 
-## 核心思路
+## v2.0 信息架构
 
-**Web 才是产品本体，IPA 只是一层安全壳。**
+底部只保留两个一级入口：
 
-- Web：功能、UI、AI 配置、记忆逻辑都部署在 Cloudflare，更新网页不需要重新安装 IPA。
-- iOS 壳：首次输入工作台域名和访问口令，验证后用 Keychain 保存，30 天免密；随后全屏加载远端工作台。
-- GitHub：`main` 每次提交自动部署 Cloudflare；iOS 壳只在你手动触发时编译一次。
+- **聊天**：打开应用直接进入。AI 自动判断新媒体、健康、日常、软装、随笔五种主角色，并持续读取长期记忆和近期日程。
+- **日历**：月历 + 当日日程。日期下方用不同颜色的小圆点标识日程类型；点击日期展开当天内容。
+
+设置、AI 模型、长期记忆、指标、数据导出全部收进右上角设置，不再占一级导航。
+
+## 日历交互
+
+日程分类：
+
+- 工作：粉色
+- 学习：紫色
+- 生活：蓝色
+- 健康：绿色
+- 灵感：橙色
+- 其他：灰色
+
+日程卡片支持：
+
+- 左滑：删除
+- 右滑：完成；已完成再次右滑可恢复待办
+- 删除后 5 秒内可撤销
+- 点击卡片：编辑标题、日期、时间、全天、分类、备注
+- 点日期右侧 `+`：手动添加日程
+
+聊天与日历打通：AI 可以读取近期日程；当用户明确说“明天下午三点提醒我…… / 加到日历 / 安排……”时，模型可输出结构化日程动作，由 Worker 真正写入 D1。完成或删除日程时，AI 只能引用上下文中真实存在的 event_id，无法唯一判断时会追问，不会猜。
 
 ## 五个自动角色
 
@@ -18,19 +40,27 @@
 - 软装学习
 - 随笔记录
 
-用户无需手动切角色。AI 自动判断主归属，并把值得长期保留的信息写进 D1。
+角色在后台自动路由，不需要用户手动选择。
 
 ## AI 提供商
 
-网页「设置 → AI 模型」支持：
+设置页支持：
 
-1. **Cloudflare Workers AI**：默认，无额外 API key。
-2. **OpenAI Responses API**：默认 API 地址 `https://api.openai.com/v1`，模型名称可自由填写。
-3. **OpenAI 兼容 API**：可填写自定义 HTTPS Base URL、API key、模型名称；后端使用 `/chat/completions`。
+1. Cloudflare Workers AI
+2. OpenAI Responses API
+3. OpenAI 兼容 API
 
-API key 不回传到前端。保存时由 Worker 使用 APP_TOKEN 派生 AES-GCM 密钥，加密后写入 D1。
+第三方 API key 不回传到浏览器；Worker 使用 APP_TOKEN 派生 AES-GCM 密钥，加密后写入 D1。
 
-> 如果你更换 GitHub Secret `APP_TOKEN`，此前加密保存的第三方 API key 将无法解密，需要在设置中重新填写一次。
+## 数据表
+
+- `entries`：聊天记录
+- `memories`：长期记忆
+- `metrics`：指标
+- `ai_settings`：AI 配置
+- `calendar_events`：日程
+
+`calendar_events` 使用软删除，支持撤销删除。
 
 ## GitHub Secrets
 
@@ -40,59 +70,49 @@ API key 不回传到前端。保存时由 Worker 使用 APP_TOKEN 派生 AES-GCM
 - `CLOUDFLARE_API_TOKEN`
 - `APP_TOKEN`
 
-Cloudflare Token 至少需要：
+Cloudflare API Token 至少需要：
 
 - Account → Workers Scripts → Edit
 - Account → D1 → Edit
 
-可选：在 GitHub `Variables` 中增加：
+建议 GitHub Variables 增加：
 
-- `APP_PUBLIC_URL=https://db.dubin.cc.cd`
+`APP_PUBLIC_URL=https://db.dubin.cc.cd`
 
-这样部署后的 Smoke Test 会直接验证你的自定义域名；不填则验证 workers.dev 地址。
+这样部署后的 Smoke Test 会直接验证自定义域名。
 
-## Cloudflare 部署
+## 自动部署
 
-工作流：`.github/workflows/deploy-cloudflare.yml`
+`.github/workflows/deploy-cloudflare.yml` 会自动：
 
-它会自动完成：
-
-1. npm install
-2. TypeScript typecheck
-3. Vite 构建
-4. 创建/解析 D1
+1. 安装依赖
+2. TypeScript 检查
+3. 构建 React SPA
+4. 准备 D1
 5. 执行全部 migrations
 6. 部署 Worker + Static Assets
-7. 验证网页首页
-8. 验证错误口令必须返回 401
-9. 验证 `/api/health`
-10. 验证 D1 `/api/overview`
-11. 验证 AI 设置接口
+7. 验证网页
+8. 验证 401 鉴权
+9. 验证 AI / D1
+10. 实际创建、完成、软删除一条 Smoke Test 日程
 
 ## iOS 壳
 
-工作流：`.github/workflows/build-ios.yml`
+`.github/workflows/build-ios.yml` 使用 SwiftUI + WKWebView + XcodeGen 编译独立壳，不使用 Capacitor。
 
-手动运行 `Build iOS Shell IPA` 即可。它不需要填写 Cloudflare URL，因为域名在 App 首次启动时输入。
+首次安装输入：
 
-首次启动：
+- 域名，例如 `https://db.dubin.cc.cd`
+- APP_TOKEN 对应访问口令
 
-1. 输入 `https://db.dubin.cc.cd`（或未来的新域名）
-2. 输入 APP_TOKEN 对应的私人访问口令
-3. App 请求 `/api/health` 验证
-4. 验证成功后把口令写入 iOS Keychain
-5. 30 天内免密，全屏进入远端 Web 工作台
+验证成功后：
 
-Web 端「设置 → 修改 App 连接」会触发 `workbench://shell-settings`，回到原生连接页，可更换域名或重新登录。
+- 域名保存在 UserDefaults
+- 口令保存在 iOS Keychain
+- 30 天免密
+- Web 业务更新无需重新编译 IPA
 
-## 数据
-
-- `entries`：完整记录与 AI 回复
-- `memories`：长期记忆
-- `metrics`：可追踪指标
-- `ai_settings`：AI 提供商、API 地址、模型、加密 API key
-
-设置页可导出 JSON；导出中不会包含 API key 明文或密文。
+只有将来增加 Face ID、推送、相机、系统分享等原生能力时才需要更新壳。
 
 ## 本地开发
 

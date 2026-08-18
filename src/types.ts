@@ -1,6 +1,8 @@
 export type Role = "media" | "health" | "daily" | "interior" | "journal";
 export type HealthSignal = "none" | "caution" | "urgent";
 export type AIProvider = "workers-ai" | "openai-responses" | "openai-compatible";
+export type EventCategory = "work" | "study" | "life" | "health" | "inspiration" | "other";
+export type EventStatus = "pending" | "completed" | "deleted";
 
 export interface Entry {
   id: string;
@@ -35,10 +37,44 @@ export interface Metric {
   recorded_at: string;
 }
 
+export interface CalendarEvent {
+  id: string;
+  title: string;
+  note: string;
+  start_at: string;
+  end_at: string;
+  all_day: number | boolean;
+  category: EventCategory;
+  status: EventStatus;
+  source: "manual" | "ai" | string;
+  timezone: string;
+  created_at: string;
+  updated_at: string;
+  completed_at?: string | null;
+}
+
+export interface CalendarEventInput {
+  title: string;
+  note?: string;
+  start_at: string;
+  end_at: string;
+  all_day?: boolean;
+  category?: EventCategory;
+  timezone?: string;
+}
+
+export interface CalendarActionResult {
+  action: "create" | "complete" | "delete";
+  ok: boolean;
+  event?: CalendarEvent;
+  message: string;
+}
+
 export interface ChatResponse {
   entry: Entry;
   memories_added: number;
   metrics_added: number;
+  calendar_actions: CalendarActionResult[];
 }
 
 export interface Overview {
