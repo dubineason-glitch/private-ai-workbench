@@ -1,6 +1,5 @@
 interface Env {
   DB: D1Database;
-  ASSETS: Fetcher;
   AI: Ai;
   APP_TOKEN: string;
   AI_PROVIDER?: "workers-ai" | "openai";
@@ -175,7 +174,7 @@ export default {
         return json({ error: "API 路径不存在" }, 404, request);
       }
 
-      return env.ASSETS.fetch(request);
+      return new Response("Not Found", { status: 404 });
     } catch (error) {
       console.error(JSON.stringify({
         message: "request_failed",
