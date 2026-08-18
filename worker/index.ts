@@ -1,5 +1,6 @@
 interface Env {
   DB: D1Database;
+  ASSETS?: Fetcher;
   AI: Ai;
   APP_TOKEN: string;
   AI_PROVIDER?: "workers-ai" | "openai";
@@ -174,7 +175,13 @@ export default {
         return json({ error: "API 路径不存在" }, 404, request);
       }
 
-      return new Response("Not Found", { status: 404 });
+      // Production static assets are normally served before this Worker for non-/api routes.
+      // The optional binding fallback keeps direct Worker invocations working too.
+      if (env.ASSETS) return env.ASSETS.fetch(request);
+      return new Response(
+        `<!doctype html><html lang="zh-CN"><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>私人 AI 工作台</title><body style="font-family:-apple-system,BlinkMacSystemFont,Segoe UI,sans-serif;padding:40px;line-height:1.7"><h2>私人 AI 工作台已部署</h2><p>当前是 Cloudflare Worker 代码预览环境，静态网页资源不会从这里呈现。</p><p>请把地址栏中的正式 <code>workers.dev</code> 地址复制到浏览器新标签页打开。</p></body></html>`,
+        { status: 200, headers: { "Content-Type": "text/html; charset=utf-8" } },
+      );
     } catch (error) {
       console.error(JSON.stringify({
         message: "request_failed",
