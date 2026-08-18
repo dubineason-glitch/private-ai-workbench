@@ -22,12 +22,6 @@ jobs:
       - name: Install dependencies
         run: npm install
 
-       - name: Install dependencies
-        run: npm install
-
-      - name: Build Web
-        run: npm run build
-
       - name: Build Web
         run: npm run build
 
