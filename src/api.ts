@@ -34,6 +34,23 @@ async function request<T>(path: string, init: RequestInit = {}): Promise<T> {
   return data as T;
 }
 
+export async function verifyToken(token: string) {
+  const cleanToken = token.trim();
+  if (!cleanToken) throw new Error("请输入访问口令");
+
+  const response = await fetch(`${API_BASE}/api/health`, {
+    method: "GET",
+    headers: {
+      "Content-Type": "application/json",
+      "x-workbench-token": cleanToken,
+    },
+  });
+
+  const data = await response.json().catch(() => ({}));
+  if (!response.ok) throw new Error(data.error || `验证失败 (${response.status})`);
+  return data as { ok: boolean; provider?: string; model: string };
+}
+
 export const api = {
   health: () => request<{ ok: boolean; model: string }>("/api/health"),
   overview: () => request<Overview>("/api/overview"),

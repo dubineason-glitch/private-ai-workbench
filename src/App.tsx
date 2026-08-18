@@ -1,5 +1,5 @@
 import { FormEvent, useEffect, useMemo, useState } from "react";
-import { api, getSavedToken, saveToken } from "./api";
+import { api, getSavedToken, saveToken, verifyToken } from "./api";
 import type { Entry, MemoryItem, Overview, Role } from "./types";
 
 const ROLES: Record<
@@ -73,6 +73,7 @@ export default function App() {
   const [message, setMessage] = useState("");
   const [sending, setSending] = useState(false);
   const [loading, setLoading] = useState(false);
+  const [verifyingToken, setVerifyingToken] = useState(false);
   const [error, setError] = useState("");
   const [lastReply, setLastReply] = useState<Entry | null>(null);
   const [activeRole, setActiveRole] = useState<Role | "all">("all");
@@ -99,7 +100,15 @@ export default function App() {
       setHistory(h.entries);
       setMemories(m.memories);
     } catch (e) {
-      setError(e instanceof Error ? e.message : "加载失败");
+      const message = e instanceof Error ? e.message : "加载失败";
+      if (message === "访问口令不正确") {
+        saveToken("");
+        setToken("");
+        setDraftToken("");
+        setError("访问口令不正确，请重新输入。");
+      } else {
+        setError(message);
+      }
     } finally {
       setLoading(false);
     }
@@ -129,12 +138,29 @@ export default function App() {
     }
   }
 
-  function unlock(event: FormEvent) {
+  async function applyToken(value: string) {
+    const clean = value.trim();
+    if (!clean || verifyingToken) return;
+
+    setVerifyingToken(true);
+    setError("");
+    try {
+      await verifyToken(clean);
+      saveToken(clean);
+      setDraftToken(clean);
+      setToken(clean);
+    } catch (e) {
+      saveToken("");
+      setToken("");
+      setError(e instanceof Error ? e.message : "访问口令验证失败");
+    } finally {
+      setVerifyingToken(false);
+    }
+  }
+
+  async function unlock(event: FormEvent) {
     event.preventDefault();
-    const value = draftToken.trim();
-    if (!value) return;
-    saveToken(value);
-    setToken(value);
+    await applyToken(draftToken);
   }
 
   async function exportData() {
@@ -164,6 +190,7 @@ export default function App() {
           <p className="muted">
             请输入你部署时设置的私人访问口令。口令只保存在当前设备。
           </p>
+          {error && <div className="error-banner">{error}</div>}
           <form onSubmit={unlock} className="lock-form">
             <input
               type="password"
@@ -172,8 +199,8 @@ export default function App() {
               placeholder="访问口令"
               autoFocus
             />
-            <button className="primary-button" type="submit">
-              进入工作台
+            <button className="primary-button" type="submit" disabled={verifyingToken}>
+              {verifyingToken ? "验证中…" : "进入工作台"}
             </button>
           </form>
         </div>
@@ -419,12 +446,10 @@ export default function App() {
               />
               <button
                 className="secondary-button"
-                onClick={() => {
-                  saveToken(draftToken);
-                  setToken(draftToken.trim());
-                }}
+                onClick={() => void applyToken(draftToken)}
+                disabled={verifyingToken}
               >
-                保存到此设备
+                {verifyingToken ? "验证中…" : "验证并保存"}
               </button>
             </article>
             <article className="settings-card">
