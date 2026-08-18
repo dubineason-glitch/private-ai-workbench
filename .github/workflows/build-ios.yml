@@ -1,0 +1,103 @@
+name: Build iOS IPA
+
+on:
+  workflow_dispatch:
+    inputs:
+      api_url:
+        description: "Cloudflare Worker URL，例如 https://private-ai-workbench.xxx.workers.dev"
+        required: true
+        type: string
+
+      bundle_id:
+        description: "iOS Bundle ID"
+        required: true
+        default: "com.private.aiworkbench"
+        type: string
+
+jobs:
+  build-ios:
+    runs-on: macos-26
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+
+      - name: Show environment
+        run: |
+          node --version
+          npm --version
+          xcodebuild -version
+          sw_vers
+
+      - name: Install dependencies
+        run: npm install
+
+      - name: Build Web for iOS
+        env:
+          VITE_API_BASE: ${{ inputs.api_url }}
+        run: npm run build
+
+      - name: Create iOS project
+        env:
+          APP_BUNDLE_ID: ${{ inputs.bundle_id }}
+        run: |
+          rm -rf ios
+          npx cap add ios
+          npx cap sync ios
+
+      - name: Show Xcode schemes
+        run: |
+          cd ios/App
+          xcodebuild -list -project App.xcodeproj
+
+      - name: Build unsigned iOS app
+        run: |
+          cd ios/App
+
+          xcodebuild \
+            -project App.xcodeproj \
+            -scheme App \
+            -configuration Release \
+            -sdk iphoneos \
+            -derivedDataPath ../../build \
+            CODE_SIGNING_ALLOWED=NO \
+            CODE_SIGNING_REQUIRED=NO \
+            CODE_SIGN_IDENTITY="" \
+            DEVELOPMENT_TEAM="" \
+            clean build
+
+      - name: Find built App
+        run: |
+          echo "Searching for .app..."
+          find build -name "*.app" -type d
+
+          APP_PATH=$(find build -name "App.app" -type d | head -1)
+
+          if [ -z "$APP_PATH" ]; then
+            echo "App.app not found"
+            exit 1
+          fi
+
+          echo "APP_PATH=$APP_PATH" >> "$GITHUB_ENV"
+
+      - name: Create unsigned IPA
+        run: |
+          mkdir -p Payload
+          cp -R "$APP_PATH" Payload/
+
+          zip -qry PrivateAIWorkbench-unsigned.ipa Payload
+
+          ls -lh PrivateAIWorkbench-unsigned.ipa
+
+      - name: Upload IPA
+        uses: actions/upload-artifact@v4
+        with:
+          name: PrivateAIWorkbench-unsigned-ipa
+          path: PrivateAIWorkbench-unsigned.ipa
+          retention-days: 30
+          if-no-files-found: error
