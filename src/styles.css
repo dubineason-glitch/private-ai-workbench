@@ -711,3 +711,446 @@ body::before {
   .category-picker button, .chip-scroll button { background: #2b2228; }
   .swipe-shell.completed .event-card { opacity: .62; }
 }
+
+
+/* =========================================================
+   v2.1 · 线条小狗主题
+   视觉取自用户参考图的粉色、白卡片、手绘线条角色、软边框与贴纸感，
+   不依赖外部角色素材，使用原创内联 SVG 小狗。
+   ========================================================= */
+:root {
+  --bg: #fff8f7;
+  --surface: rgba(255,255,255,.94);
+  --surface-solid: #fffdfa;
+  --ink: #493d3f;
+  --muted: #9d8b8f;
+  --pink: #efa0b5;
+  --pink-deep: #d96f8f;
+  --pink-soft: #fbd8e2;
+  --pink-softer: #fff0f4;
+  --line: rgba(159, 104, 119, .16);
+  --shadow: 0 10px 28px rgba(160, 98, 118, .10);
+  --dog-ink: #5c4a4d;
+  --dog-pink: #efa1b6;
+  --dog-cream: #fffdf8;
+  --sky: #8ab7df;
+  --red: #e96872;
+  --green: #6ebc8d;
+}
+
+html, body { background: #fff7f5; }
+body::before {
+  background:
+    radial-gradient(circle at 12% 9%, rgba(244,173,190,.23) 0 2px, transparent 2.8px),
+    radial-gradient(circle at 88% 18%, rgba(126,180,220,.18) 0 2px, transparent 2.8px),
+    radial-gradient(circle at 74% 74%, rgba(239,160,181,.16) 0 1.5px, transparent 2.2px),
+    linear-gradient(180deg, #fff8f7 0%, #fffdfb 45%, #fff7f5 100%);
+  background-size: 64px 64px, 86px 86px, 54px 54px, 100% 100%;
+}
+body::after {
+  content: "♡   ·   ✦   ·   ♡";
+  position: fixed;
+  z-index: -1;
+  right: 14px;
+  bottom: 94px;
+  color: rgba(226,126,153,.16);
+  font-size: 13px;
+  letter-spacing: 5px;
+  transform: rotate(-8deg);
+  pointer-events: none;
+}
+
+/* 原创线条小狗 SVG */
+.doodle-dog { overflow: visible; }
+.doodle-dog .dog-ear,
+.doodle-dog .dog-head {
+  fill: var(--dog-cream);
+  stroke: var(--dog-ink);
+  stroke-width: 2.4;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+}
+.doodle-dog .dog-fringe,
+.doodle-dog .dog-mouth,
+.doodle-dog .dog-prop path,
+.doodle-dog .dog-prop rect,
+.doodle-dog .dog-prop circle {
+  fill: none;
+  stroke: var(--dog-ink);
+  stroke-width: 2;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+}
+.doodle-dog .dog-eye { fill: var(--dog-ink); }
+.doodle-dog .dog-nose { fill: var(--dog-ink); stroke: none; }
+.doodle-dog .dog-cheek { fill: #f6b0c2; opacity: .68; }
+.doodle-dog.dog-calendar .dog-prop rect { fill: #fff0f4; stroke: #d97a98; }
+.doodle-dog.dog-calendar .dog-prop path,
+.doodle-dog.dog-calendar .dog-prop circle { stroke: #d97a98; }
+.doodle-dog.dog-settings .dog-prop circle,
+.doodle-dog.dog-settings .dog-prop path { stroke: #8aa8c1; }
+
+/* 登录 */
+.login-screen {
+  background:
+    radial-gradient(circle at 50% 12%, rgba(244,175,193,.30), transparent 30%),
+    linear-gradient(180deg, #f6b5c7 0 19%, #fff9f7 19% 100%);
+}
+.login-screen::before {
+  content: "";
+  position: absolute;
+  top: calc(13% + env(safe-area-inset-top));
+  left: 0; right: 0;
+  height: 24px;
+  background: radial-gradient(circle at 12px -3px, #f6b5c7 14px, transparent 15px) 0 0/24px 24px repeat-x;
+  opacity: .95;
+}
+.login-orb { display: none; }
+.login-card {
+  width: min(420px, 100%);
+  border: 2px solid rgba(224,131,156,.18);
+  border-radius: 30px;
+  background: rgba(255,253,249,.97);
+  box-shadow: 0 16px 44px rgba(154,96,113,.13);
+  padding: 28px 24px 24px;
+}
+.login-card::before {
+  content: "HAPPY DAY  ·  DB";
+  display: block;
+  margin: -4px 0 14px;
+  color: #d97a98;
+  font-size: 10px;
+  font-weight: 800;
+  letter-spacing: .16em;
+}
+.dog-login-brand {
+  position: relative;
+  width: 94px;
+  height: 86px;
+  display: grid;
+  place-items: center;
+  margin-bottom: 10px;
+}
+.dog-login-brand::before {
+  content: "";
+  position: absolute;
+  inset: 4px;
+  border-radius: 28px 28px 20px 20px;
+  background: #fff4f5;
+  border: 1.5px dashed #e6a5b7;
+}
+.dog-login-brand .doodle-dog { position: relative; z-index: 1; }
+.dog-db-chip {
+  position: absolute;
+  z-index: 2;
+  right: -4px;
+  bottom: 4px;
+  padding: 3px 7px;
+  border-radius: 999px;
+  background: #79a9d2;
+  color: white;
+  font-size: 10px;
+  font-weight: 850;
+  border: 2px solid white;
+}
+.login-copy { margin: 10px 0 22px; }
+.login-copy h1 { font-size: 31px; letter-spacing: -1.1px; color: #43383a; }
+.login-copy p { color: #8f7d82; }
+.field input, .field textarea, .field select {
+  border: 1.5px solid #edd6dc;
+  background: #fffdfa;
+  border-radius: 17px;
+}
+.field input:focus, .field textarea:focus, .field select:focus {
+  border-color: #e69ab0;
+  box-shadow: 0 0 0 4px rgba(230,154,176,.10);
+}
+.primary-button {
+  background: #e687a4;
+  box-shadow: none;
+  border: 1px solid #d97a98;
+}
+.secondary-button { background: #fff0f3; color: #b8607b; }
+
+/* 顶部粉色主题栏 + 花边 */
+.topbar {
+  height: calc(82px + env(safe-area-inset-top));
+  padding: calc(13px + env(safe-area-inset-top)) max(15px, calc((100vw - 760px) / 2 + 15px)) 15px;
+  background: linear-gradient(180deg, rgba(247,190,205,.98), rgba(244,174,195,.98));
+  border-bottom: 0;
+  box-shadow: 0 6px 20px rgba(169,103,124,.08);
+}
+.topbar::after {
+  content: "";
+  position: absolute;
+  left: 0; right: 0; bottom: -11px;
+  height: 14px;
+  background: radial-gradient(circle at 11px -2px, #f4aec3 12px, transparent 13px) 0 0/22px 14px repeat-x;
+  pointer-events: none;
+}
+.dog-brand-mark {
+  width: 46px; height: 46px;
+  display: grid; place-items: center;
+  border-radius: 15px;
+  background: #fff9f6;
+  border: 1.5px solid rgba(142,89,106,.16);
+  box-shadow: 0 5px 12px rgba(133,80,98,.10);
+}
+.brand-copy strong { color: #47383d; font-size: 16px; }
+.brand-copy small { color: rgba(91,65,75,.67); }
+.round-button, .back-button {
+  background: rgba(255,253,249,.92);
+  border: 1.5px solid rgba(137,83,101,.14);
+  color: #895a69;
+  border-radius: 16px;
+}
+.main { padding-top: calc(102px + env(safe-area-inset-top)); }
+.toast { background: rgba(75,57,62,.92); }
+
+/* 聊天 */
+.chat-page { min-height: calc(100dvh - 205px); }
+.chat-welcome {
+  position: relative;
+  margin-top: 8px;
+  padding: 28px 20px 24px;
+  border: 1.5px solid #f0d8de;
+  border-radius: 28px;
+  background: rgba(255,253,249,.96);
+  box-shadow: var(--shadow);
+  overflow: hidden;
+}
+.chat-welcome::after {
+  content: "✦   ♡   ·   ✦";
+  position: absolute;
+  right: 18px; top: 17px;
+  color: rgba(224,124,151,.28);
+  font-size: 12px;
+  letter-spacing: 4px;
+}
+.welcome-dog {
+  position: relative;
+  width: 82px; height: 74px;
+  display: grid; place-items: center;
+  margin-bottom: 15px;
+  border-radius: 24px;
+  background: #fff1f3;
+  border: 1.5px dashed #e5a5b6;
+}
+.welcome-dog > span {
+  position: absolute;
+  right: -7px; bottom: -5px;
+  padding: 4px 8px;
+  border-radius: 999px;
+  background: #7faed4;
+  color: #fff;
+  font-weight: 850;
+  font-size: 10px;
+  border: 2px solid #fff;
+}
+.chat-welcome h1 {
+  font-size: clamp(30px, 8vw, 46px);
+  color: #44373b;
+  letter-spacing: -1.4px;
+}
+.chat-welcome > p:not(.eyebrow) { color: #8e7c81; }
+.eyebrow { color: #d47592; }
+.prompt-row button {
+  border: 1.5px solid #efd3db;
+  background: #fff9f7;
+  color: #8b6672;
+  box-shadow: none;
+}
+.ai-avatar {
+  width: 36px; height: 36px; flex-basis: 36px;
+  border-radius: 13px;
+  background: #fff9f5;
+  border: 1.5px solid #efd5dc;
+  box-shadow: 0 4px 10px rgba(120,78,91,.06);
+  margin-top: 17px;
+}
+.message-meta > span { color: #c26e88; }
+.user-bubble {
+  background: #f3acc0;
+  color: #4c3a40;
+  border: 1px solid #e69ab0;
+  border-radius: 20px 20px 7px 20px;
+  box-shadow: none;
+}
+.ai-bubble {
+  background: #fffdfa;
+  border: 1.5px solid #efdbdf;
+  color: #514347;
+  border-radius: 7px 20px 20px 20px;
+  box-shadow: 0 6px 16px rgba(115,77,89,.05);
+}
+.composer {
+  border: 1.5px solid #e8c7d0;
+  background: rgba(255,253,250,.98);
+  box-shadow: 0 10px 28px rgba(150,93,111,.10);
+}
+.composer::before {
+  content: "◡ᴥ◡";
+  position: absolute;
+  left: 15px; top: -17px;
+  color: rgba(177,105,127,.35);
+  font-size: 10px;
+  letter-spacing: 1px;
+}
+.send-button { background: #e687a4; color: white; box-shadow: none; }
+.calendar-action-card.ok { background: #fff9f5; border-color: #e9d4da; }
+
+/* 月历 */
+.month-card {
+  position: relative;
+  border: 1.5px solid #edcfd7;
+  background: #fffdfa;
+  box-shadow: 0 8px 22px rgba(151,92,111,.08);
+  border-radius: 28px;
+  overflow: visible;
+}
+.month-card::before {
+  content: "HAPPY PLAN  ·  ♡  ·  HAPPY PLAN";
+  display: block;
+  margin: -2px 0 8px;
+  text-align: center;
+  color: #d7809a;
+  font-size: 9px;
+  font-weight: 850;
+  letter-spacing: .14em;
+}
+.month-toolbar button {
+  background: #fff2f4;
+  border: 1px solid #ecd0d8;
+  color: #cf718e;
+}
+.month-toolbar strong { color: #533f46; }
+.weekday-row { color: #a2838d; }
+.day-cell { color: #4d4144; }
+.day-cell.selected .day-number {
+  background: #e58aa7;
+  color: white;
+  box-shadow: 0 4px 10px rgba(218,111,143,.18);
+}
+.day-cell.today:not(.selected) .day-number {
+  color: #d16d8b;
+  box-shadow: inset 0 0 0 1.5px #e6a0b4;
+}
+.event-dots i { width: 5px; height: 5px; }
+.agenda-section {
+  margin-top: 14px;
+  padding: 18px 14px 6px;
+  border-radius: 28px;
+  background: rgba(255,249,247,.76);
+  border: 1.5px solid rgba(236,207,215,.82);
+}
+.agenda-heading h2 { color: #4c3d42; }
+.add-event-button {
+  background: #e98daa;
+  color: white;
+  box-shadow: none;
+  border: 1px solid #dc7997;
+}
+.empty-card {
+  border: 1.5px dashed #e5c6cf;
+  background: #fffdfa;
+}
+.swipe-shell { border-radius: 21px; }
+.event-card {
+  background: #fffdfa;
+  border: 1.5px solid #edd6dc;
+  box-shadow: 0 5px 14px rgba(118,77,89,.05);
+}
+.event-card h3 { color: #4d3f43; }
+.category-pill { border: 1px solid rgba(255,255,255,.65); }
+.swipe-action.left { background: #75bd91; }
+.swipe-action.right { background: #e96e76; }
+.undo-bar { background: #55464a; }
+
+/* 底部栏：参考图的整块粉色主题条 */
+.tab-bar {
+  left: 50%;
+  bottom: 0;
+  width: min(760px, 100%);
+  height: calc(76px + env(safe-area-inset-bottom));
+  padding: 7px 18px calc(7px + env(safe-area-inset-bottom));
+  border: 0;
+  border-top: 1.5px solid rgba(174,108,129,.13);
+  border-radius: 26px 26px 0 0;
+  background: rgba(247,187,202,.96);
+  box-shadow: 0 -7px 22px rgba(138,83,100,.08);
+  backdrop-filter: blur(18px);
+}
+.tab-bar::before {
+  content: "";
+  position: absolute;
+  left: 0; right: 0; top: -9px;
+  height: 12px;
+  background: radial-gradient(circle at 10px 12px, #f7bbca 10px, transparent 11px) 0 0/20px 12px repeat-x;
+  pointer-events: none;
+}
+.tab-bar button {
+  position: relative;
+  color: #725b62;
+  border-radius: 18px;
+  font-size: 11px;
+  gap: 1px;
+}
+.tab-bar button.active {
+  background: rgba(255,253,250,.67);
+  color: #bd5e7b;
+}
+.dog-tab-icon {
+  width: 36px; height: 34px;
+  display: grid; place-items: center;
+  transform: translateY(1px);
+}
+.tab-bar button.active .dog-tab-icon { transform: translateY(-1px) scale(1.05); }
+
+/* 设置 / 记忆 / 编辑器 */
+.panel-page { background: #fff8f6; }
+.panel-header {
+  background: #f5b3c5;
+  border-bottom: 0;
+}
+.panel-header::after {
+  content: "";
+  position: absolute; left: 0; right: 0; bottom: -10px; height: 12px;
+  background: radial-gradient(circle at 10px -1px, #f5b3c5 11px, transparent 12px) 0 0/20px 12px repeat-x;
+}
+.settings-hero, .settings-card, .memory-card, .metric-card {
+  border: 1.5px solid #edd4db;
+  background: #fffdfa;
+  box-shadow: 0 6px 18px rgba(133,85,100,.06);
+}
+.settings-dog {
+  width: 64px; height: 64px;
+  display: grid; place-items: center;
+  border-radius: 20px;
+  background: #fff1f3;
+  border: 1.5px dashed #e3a2b4;
+}
+.bottom-sheet {
+  background: #fffaf8;
+  border: 1.5px solid #edcfd7;
+  box-shadow: 0 -14px 40px rgba(128,80,95,.14);
+}
+.sheet-handle { background: #dfb7c3; }
+.category-picker button { border-color: #ead3d9; background: #fffdfa; }
+.category-picker button.active { box-shadow: 0 0 0 2px #fff, 0 0 0 4px rgba(226,137,163,.18); }
+
+@media (max-width: 520px) {
+  .topbar { height: calc(78px + env(safe-area-inset-top)); }
+  .main { padding: calc(97px + env(safe-area-inset-top)) 13px 20px; }
+  .chat-main { padding-bottom: 130px; }
+  .calendar-main { padding-bottom: 96px; }
+  .brand-copy strong { font-size: 15px; }
+  .dog-brand-mark { width: 42px; height: 42px; }
+  .chat-welcome { padding: 24px 18px 21px; }
+  .chat-welcome h1 { font-size: 34px; }
+  .user-row { padding-left: 42px; }
+  .ai-row { padding-right: 15px; }
+  .ai-stack { max-width: 90%; }
+  .month-card { border-radius: 24px; }
+  .agenda-section { padding-left: 10px; padding-right: 10px; }
+  .event-card { border-radius: 18px; }
+}

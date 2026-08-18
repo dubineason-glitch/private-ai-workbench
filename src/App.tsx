@@ -45,12 +45,12 @@ const CATEGORY_META: Record<
   EventCategory,
   { label: string; className: string; color: string }
 > = {
-  work: { label: "工作", className: "cat-work", color: "#ff6fa8" },
-  study: { label: "学习", className: "cat-study", color: "#9b78ff" },
-  life: { label: "生活", className: "cat-life", color: "#58aef7" },
-  health: { label: "健康", className: "cat-health", color: "#55c88a" },
-  inspiration: { label: "灵感", className: "cat-inspiration", color: "#ff9c57" },
-  other: { label: "其他", className: "cat-other", color: "#a8a4aa" },
+  work: { label: "工作", className: "cat-work", color: "#ef8aa8" },
+  study: { label: "学习", className: "cat-study", color: "#9f8de8" },
+  life: { label: "生活", className: "cat-life", color: "#76acd9" },
+  health: { label: "健康", className: "cat-health", color: "#77b994" },
+  inspiration: { label: "灵感", className: "cat-inspiration", color: "#e9a36c" },
+  other: { label: "其他", className: "cat-other", color: "#aaa1a5" },
 };
 
 const CATEGORY_KEYS = Object.keys(CATEGORY_META) as EventCategory[];
@@ -147,6 +147,70 @@ function greeting() {
   if (hour < 14) return "中午好";
   if (hour < 18) return "下午好";
   return "晚上好";
+}
+
+
+type DogVariant = "hello" | "chat" | "calendar" | "settings";
+
+function DoodleDog({ size = 44, variant = "hello" }: { size?: number; variant?: DogVariant }) {
+  return (
+    <svg
+      className={`doodle-dog dog-${variant}`}
+      width={size}
+      height={size}
+      viewBox="0 0 64 64"
+      aria-hidden="true"
+    >
+      <path className="dog-ear dog-ear-left" d="M19 20c-6-9-12-7-12 0 0 6 5 10 10 9" />
+      <path className="dog-ear dog-ear-right" d="M45 20c6-9 12-7 12 0 0 6-5 10-10 9" />
+      <path className="dog-head" d="M15 29c0-10 7-17 17-17s17 7 17 17v7c0 10-7 17-17 17S15 46 15 36z" />
+      <path className="dog-fringe" d="M23 16c3 3 6 4 9 1 3 3 6 2 9-1" />
+      <circle className="dog-eye" cx="26" cy="32" r="1.7" />
+      <circle className="dog-eye" cx="38" cy="32" r="1.7" />
+      <path className="dog-nose" d="M30 37c1.3-1.3 2.7-1.3 4 0-.5 2-1.1 3-2 3s-1.5-1-2-3z" />
+      <path className="dog-mouth" d="M32 40c-1 2-3 3-5 2m5-2c1 2 3 3 5 2" />
+      <ellipse className="dog-cheek" cx="22" cy="38" rx="3" ry="1.6" />
+      <ellipse className="dog-cheek" cx="42" cy="38" rx="3" ry="1.6" />
+      {variant === "hello" && (
+        <g className="dog-prop">
+          <path d="M14 15l5-8 5 8" />
+          <circle cx="19" cy="7" r="1.5" />
+          <path d="M10 49c3 3 5 4 8 4" />
+        </g>
+      )}
+      {variant === "chat" && (
+        <g className="dog-prop">
+          <path d="M8 47h12l4 4v-4h4c2 0 3-1 3-3v-4" />
+          <circle cx="14" cy="43" r="1" />
+          <circle cx="18" cy="43" r="1" />
+          <circle cx="22" cy="43" r="1" />
+        </g>
+      )}
+      {variant === "calendar" && (
+        <g className="dog-prop">
+          <rect x="39" y="42" width="16" height="14" rx="3" />
+          <path d="M42 40v5m10-5v5M39 47h16" />
+          <circle cx="44" cy="51" r="1" />
+          <circle cx="50" cy="51" r="1" />
+        </g>
+      )}
+      {variant === "settings" && (
+        <g className="dog-prop">
+          <circle cx="49" cy="48" r="6" />
+          <circle cx="49" cy="48" r="2" />
+          <path d="M49 39v3m0 12v3m-9-9h3m12 0h3" />
+        </g>
+      )}
+    </svg>
+  );
+}
+
+function DogTabIcon({ type }: { type: "chat" | "calendar" }) {
+  return (
+    <span className={`dog-tab-icon ${type}`}>
+      <DoodleDog size={31} variant={type} />
+    </span>
+  );
 }
 
 function makeDraft(date: string, event?: CalendarEvent): EventDraft {
@@ -575,10 +639,10 @@ export default function App() {
         <div className="login-orb login-orb-one" />
         <div className="login-orb login-orb-two" />
         <form className="login-card" onSubmit={unlock}>
-          <div className="db-logo large">DB<span>♡</span></div>
+          <div className="dog-login-brand"><DoodleDog size={82} variant="hello" /><span className="dog-db-chip">DB</span></div>
           <div className="login-copy">
-            <h1>DB 工作台</h1>
-            <p>你的私人 AI、日历与长期记忆。</p>
+            <h1>DB 小狗工作台</h1>
+            <p>陪你聊天、记日程，也把重要的事慢慢记住。</p>
           </div>
           {error && <div className="alert error">{error}</div>}
           <label className="field">
@@ -643,9 +707,9 @@ export default function App() {
     <div className="app-shell">
       <header className="topbar">
         <button className="brand-button" onClick={() => setView("chat")} aria-label="返回聊天">
-          <span className="db-logo">DB<span>♡</span></span>
+          <span className="dog-brand-mark"><DoodleDog size={42} variant={view === "calendar" ? "calendar" : "chat"} /></span>
           <span className="brand-copy">
-            <strong>{view === "chat" ? "DB" : "日历"}</strong>
+            <strong>{view === "chat" ? "DB 小狗助手" : "小狗日历"}</strong>
             <small>
               {view === "chat"
                 ? `${health?.configured ? "AI 在线" : "AI 待配置"} · ${health?.model || "同步中"}`
@@ -692,11 +756,11 @@ export default function App() {
 
       <nav className="tab-bar" aria-label="主导航">
         <button className={view === "chat" ? "active" : ""} onClick={() => setView("chat")}>
-          <span className="tab-icon">◌</span>
+          <DogTabIcon type="chat" />
           <span>聊天</span>
         </button>
         <button className={view === "calendar" ? "active" : ""} onClick={() => setView("calendar")}>
-          <span className="tab-icon">▦</span>
+          <DogTabIcon type="calendar" />
           <span>日历</span>
         </button>
       </nav>
@@ -749,7 +813,7 @@ function ChatView({
       <div className="chat-scroll">
         {!history.length && !loading && (
           <div className="chat-welcome">
-            <div className="welcome-mark">DB</div>
+            <div className="welcome-dog"><DoodleDog size={66} variant="hello" /><span>DB</span></div>
             <p className="eyebrow">PRIVATE AI</p>
             <h1>{greeting()}<br />今天想聊什么？</h1>
             <p>聊天、计划、健康记录、工作复盘、灵感或日程，直接说就好。</p>
@@ -767,7 +831,7 @@ function ChatView({
               <div className="message-bubble user-bubble">{entry.user_text}</div>
             </div>
             <div className="message-row ai-row">
-              <div className="ai-avatar">DB</div>
+              <div className="ai-avatar"><DoodleDog size={28} variant="chat" /></div>
               <div className="ai-stack">
                 <div className="message-meta">
                   <span>{ROLES[entry.role].short}</span>
@@ -805,7 +869,7 @@ function ChatView({
 
         {sending && (
           <div className="message-row ai-row typing-row">
-            <div className="ai-avatar">DB</div>
+            <div className="ai-avatar"><DoodleDog size={28} variant="chat" /></div>
             <div className="typing-bubble"><i /><i /><i /></div>
           </div>
         )}
@@ -1161,9 +1225,9 @@ function SettingsPanel({
       {error && <div className="alert error panel-alert">{error}</div>}
       <main className="panel-content">
         <section className="settings-hero">
-          <div className="db-logo medium">DB<span>♡</span></div>
+          <div className="settings-dog"><DoodleDog size={58} variant="settings" /></div>
           <div>
-            <h1>DB 工作台</h1>
+            <h1>DB 小狗工作台</h1>
             <p>{health?.configured ? "AI 已连接" : "AI 需要配置"} · {providerName(health?.provider)}</p>
           </div>
         </section>
