@@ -758,7 +758,7 @@ function ChatView({
     <section className="chat-page yuy-reference-chat">
       <div className="chat-scroll">
         <div className="yuy-reference-chat-header">
-          <img src="/yuy-chat-header-exact.png" alt="YUY 小玉" />
+          <img src="/yuy-chat-header-tight.png" alt="YUY 小玉" />
           <button className="yuy-header-bell-hit" onClick={onOpenSettings} aria-label="设置" />
         </div>
 
@@ -772,7 +772,7 @@ function ChatView({
               <div className="user-avatar"><img src="/yuy-user-avatar-exact.png" alt="" /></div>
             </div>
             <div className="message-row ai-row reference-ai-row">
-              <div className="ai-avatar"><img src="/yuy-dog-avatar-exact.png" alt="小玉伙伴" /></div>
+              <div className="ai-avatar"><img src="/yuy-dog-avatar-tight.png" alt="小玉伙伴" /></div>
               <div className="ai-stack">
                 <div className="message-bubble ai-bubble">{entry.assistant_text}</div>
                 <div className="message-meta reference-meta">
@@ -810,14 +810,17 @@ function ChatView({
 
         {sending && (
           <div className="message-row ai-row typing-row">
-            <div className="ai-avatar"><img src="/yuy-dog-avatar-exact.png" alt="小玉伙伴" /></div>
+            <div className="ai-avatar"><img src="/yuy-dog-avatar-tight.png" alt="小玉伙伴" /></div>
             <div className="typing-bubble"><i /><i /><i /></div>
           </div>
         )}
         <div ref={chatEndRef} />
       </div>
 
-      <form className="composer" onSubmit={onSend}>
+      <form className="composer yuy-composer-v51" onSubmit={onSend}>
+        <span className="composer-leading" aria-hidden="true">
+          <img src="/yuy-composer-flower.png" alt="" />
+        </span>
         <textarea
           value={message}
           onChange={(e) => setMessage(e.target.value)}
@@ -830,7 +833,14 @@ function ChatView({
             }
           }}
         />
-        <button type="submit" className="send-button" disabled={!message.trim() || sending} aria-label="发送">{message.trim() ? "↑" : "♩"}</button>
+        <button
+          type="submit"
+          className={`send-button ${message.trim() ? "has-text" : "idle"}`}
+          disabled={sending}
+          aria-label={message.trim() ? "发送" : "语音"}
+        >
+          {message.trim() ? "↑" : <img src="/yuy-composer-mic.png" alt="" />}
+        </button>
       </form>
     </section>
   );

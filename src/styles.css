@@ -1863,3 +1863,191 @@ body::before{display:none!important}
 /* Keep swipe actions hidden behind the white row until the card is moved. */
 .yuy-reference-calendar .swipe-shell{background:#fffaf7!important}
 .yuy-reference-calendar .reference-event-card{background:#fffaf7!important;width:100%!important}
+
+
+/* =========================================================
+   YUY v5.1 micro-polish
+   - tighter image crops: no pale/white picture rims
+   - fuller chat/task avatars
+   - composer rebuilt from the approved UI reference
+   ========================================================= */
+
+/* Header artwork: eliminate any visible crop rim and keep the rounded mask owned by CSS. */
+.yuy-reference-chat-header{
+  padding:0!important;
+  border:0!important;
+  background:transparent!important;
+  line-height:0!important;
+  box-shadow:0 10px 28px rgba(157,91,113,.065)!important;
+}
+.yuy-reference-chat-header img{
+  width:calc(100% + 2px)!important;
+  max-width:none!important;
+  margin:-1px!important;
+  height:auto!important;
+  object-fit:cover!important;
+  display:block!important;
+}
+
+/* User avatar: slightly fuller inside the circle. */
+.user-avatar{
+  width:40px!important;
+  height:40px!important;
+  flex:0 0 40px!important;
+  margin-bottom:7px!important;
+  background:#f9dfe4!important;
+  border:1px solid rgba(214,126,153,.26)!important;
+  box-shadow:0 3px 10px rgba(130,75,95,.08)!important;
+}
+.user-avatar img{
+  width:108%!important;
+  height:108%!important;
+  max-width:none!important;
+  object-fit:cover!important;
+  transform:translate(-4%,-4%)!important;
+}
+
+/* AI/task avatar: use the tight square crop and let the character actually fill the avatar. */
+.reference-ai-row .ai-avatar,
+.typing-row .ai-avatar{
+  width:46px!important;
+  height:46px!important;
+  flex:0 0 46px!important;
+  margin-top:1px!important;
+  border-radius:14px!important;
+  overflow:hidden!important;
+  background:#f9dfe4!important;
+  border:1px solid rgba(214,126,153,.22)!important;
+  box-shadow:0 3px 10px rgba(130,75,95,.06)!important;
+}
+.reference-ai-row .ai-avatar img,
+.typing-row .ai-avatar img{
+  width:112%!important;
+  height:112%!important;
+  max-width:none!important;
+  object-fit:cover!important;
+  transform:translate(-6%,-6%)!important;
+  mix-blend-mode:normal!important;
+  border-radius:0!important;
+}
+
+/* Chat composer: closer to the approved YUY pill, with exact flower + mic image assets. */
+.yuy-reference-chat .composer.yuy-composer-v51{
+  left:50%!important;
+  bottom:calc(84px + env(safe-area-inset-bottom))!important;
+  transform:translateX(-50%)!important;
+  width:min(414px,calc(100% - 20px))!important;
+  min-height:56px!important;
+  max-height:102px!important;
+  padding:5px 7px 5px 6px!important;
+  gap:4px!important;
+  border-radius:29px!important;
+  border:1px solid rgba(213,128,155,.35)!important;
+  background:#fffaf7!important;
+  box-shadow:0 7px 18px rgba(135,81,99,.045)!important;
+  overflow:hidden!important;
+}
+.yuy-reference-chat .composer.yuy-composer-v51::before{
+  display:none!important;
+  content:none!important;
+}
+.composer-leading{
+  width:42px;
+  height:42px;
+  flex:0 0 42px;
+  overflow:hidden;
+  border-radius:999px;
+  display:grid;
+  place-items:center;
+}
+.composer-leading img{
+  width:45px;
+  height:45px;
+  max-width:none;
+  object-fit:cover;
+  display:block;
+  transform:scale(1.04);
+}
+.yuy-reference-chat .composer.yuy-composer-v51 textarea{
+  min-width:0!important;
+  min-height:40px!important;
+  max-height:82px!important;
+  padding:10px 6px 8px!important;
+  border:0!important;
+  outline:0!important;
+  background:transparent!important;
+  box-shadow:none!important;
+  color:#684852!important;
+  font-size:14px!important;
+  line-height:20px!important;
+  font-weight:450!important;
+}
+.yuy-reference-chat .composer.yuy-composer-v51 textarea::placeholder{
+  color:#b69aa4!important;
+  opacity:1!important;
+}
+.yuy-reference-chat .composer.yuy-composer-v51 .send-button{
+  width:44px!important;
+  height:44px!important;
+  flex:0 0 44px!important;
+  margin:0!important;
+  padding:0!important;
+  border:0!important;
+  border-radius:999px!important;
+  display:grid!important;
+  place-items:center!important;
+  overflow:hidden!important;
+  box-shadow:none!important;
+}
+.yuy-reference-chat .composer.yuy-composer-v51 .send-button.idle{
+  background:transparent!important;
+}
+.yuy-reference-chat .composer.yuy-composer-v51 .send-button.idle img{
+  width:47px!important;
+  height:47px!important;
+  max-width:none!important;
+  object-fit:cover!important;
+  display:block!important;
+}
+.yuy-reference-chat .composer.yuy-composer-v51 .send-button.has-text{
+  background:#e47da2!important;
+  color:white!important;
+  font-size:21px!important;
+  font-weight:700!important;
+}
+.yuy-reference-chat .composer.yuy-composer-v51 .send-button:disabled{
+  opacity:.72!important;
+}
+
+/* Form controls elsewhere: same soft paper input language as the chat composer. */
+.panel-page .field input,
+.panel-page .field textarea,
+.panel-page .field select,
+.event-editor .field input,
+.event-editor .field textarea,
+.event-editor .field select{
+  background:#fffaf7!important;
+  border:1px solid rgba(211,128,154,.28)!important;
+  border-radius:16px!important;
+  box-shadow:inset 0 1px 0 rgba(255,255,255,.8)!important;
+}
+.panel-page .field input:focus,
+.panel-page .field textarea:focus,
+.panel-page .field select:focus,
+.event-editor .field input:focus,
+.event-editor .field textarea:focus,
+.event-editor .field select:focus{
+  border-color:rgba(211,101,143,.48)!important;
+  box-shadow:0 0 0 3px rgba(225,122,160,.08)!important;
+}
+
+/* Small screens: keep the composer comfortable but nearly edge-to-edge. */
+@media(max-width:390px){
+  .yuy-reference-chat .composer.yuy-composer-v51{
+    width:calc(100% - 14px)!important;
+    bottom:calc(82px + env(safe-area-inset-bottom))!important;
+  }
+  .reference-ai-row{
+    padding-right:9%!important;
+  }
+}
