@@ -45,18 +45,18 @@ const CATEGORY_META: Record<
   EventCategory,
   { label: string; className: string; color: string }
 > = {
-  work: { label: "工作", className: "cat-work", color: "#ef8aa8" },
-  study: { label: "学习", className: "cat-study", color: "#9f8de8" },
-  life: { label: "生活", className: "cat-life", color: "#76acd9" },
-  health: { label: "健康", className: "cat-health", color: "#77b994" },
-  inspiration: { label: "灵感", className: "cat-inspiration", color: "#e9a36c" },
-  other: { label: "其他", className: "cat-other", color: "#aaa1a5" },
+  work: { label: "工作", className: "cat-work", color: "#ff6fa8" },
+  study: { label: "学习", className: "cat-study", color: "#9b78ff" },
+  life: { label: "生活", className: "cat-life", color: "#58aef7" },
+  health: { label: "健康", className: "cat-health", color: "#55c88a" },
+  inspiration: { label: "灵感", className: "cat-inspiration", color: "#ff9c57" },
+  other: { label: "其他", className: "cat-other", color: "#a8a4aa" },
 };
 
 const CATEGORY_KEYS = Object.keys(CATEGORY_META) as EventCategory[];
 
 type MainView = "chat" | "calendar";
-type PanelView = "settings" | "memory" | null;
+type PanelView = "settings" | "memory" | "assistant" | null;
 type MemoryMode = "memory" | "metric";
 
 type EventDraft = {
@@ -147,70 +147,6 @@ function greeting() {
   if (hour < 14) return "中午好";
   if (hour < 18) return "下午好";
   return "晚上好";
-}
-
-
-type DogVariant = "hello" | "chat" | "calendar" | "settings";
-
-function DoodleDog({ size = 44, variant = "hello" }: { size?: number; variant?: DogVariant }) {
-  return (
-    <svg
-      className={`doodle-dog dog-${variant}`}
-      width={size}
-      height={size}
-      viewBox="0 0 64 64"
-      aria-hidden="true"
-    >
-      <path className="dog-ear dog-ear-left" d="M19 20c-6-9-12-7-12 0 0 6 5 10 10 9" />
-      <path className="dog-ear dog-ear-right" d="M45 20c6-9 12-7 12 0 0 6-5 10-10 9" />
-      <path className="dog-head" d="M15 29c0-10 7-17 17-17s17 7 17 17v7c0 10-7 17-17 17S15 46 15 36z" />
-      <path className="dog-fringe" d="M23 16c3 3 6 4 9 1 3 3 6 2 9-1" />
-      <circle className="dog-eye" cx="26" cy="32" r="1.7" />
-      <circle className="dog-eye" cx="38" cy="32" r="1.7" />
-      <path className="dog-nose" d="M30 37c1.3-1.3 2.7-1.3 4 0-.5 2-1.1 3-2 3s-1.5-1-2-3z" />
-      <path className="dog-mouth" d="M32 40c-1 2-3 3-5 2m5-2c1 2 3 3 5 2" />
-      <ellipse className="dog-cheek" cx="22" cy="38" rx="3" ry="1.6" />
-      <ellipse className="dog-cheek" cx="42" cy="38" rx="3" ry="1.6" />
-      {variant === "hello" && (
-        <g className="dog-prop">
-          <path d="M14 15l5-8 5 8" />
-          <circle cx="19" cy="7" r="1.5" />
-          <path d="M10 49c3 3 5 4 8 4" />
-        </g>
-      )}
-      {variant === "chat" && (
-        <g className="dog-prop">
-          <path d="M8 47h12l4 4v-4h4c2 0 3-1 3-3v-4" />
-          <circle cx="14" cy="43" r="1" />
-          <circle cx="18" cy="43" r="1" />
-          <circle cx="22" cy="43" r="1" />
-        </g>
-      )}
-      {variant === "calendar" && (
-        <g className="dog-prop">
-          <rect x="39" y="42" width="16" height="14" rx="3" />
-          <path d="M42 40v5m10-5v5M39 47h16" />
-          <circle cx="44" cy="51" r="1" />
-          <circle cx="50" cy="51" r="1" />
-        </g>
-      )}
-      {variant === "settings" && (
-        <g className="dog-prop">
-          <circle cx="49" cy="48" r="6" />
-          <circle cx="49" cy="48" r="2" />
-          <path d="M49 39v3m0 12v3m-9-9h3m12 0h3" />
-        </g>
-      )}
-    </svg>
-  );
-}
-
-function DogTabIcon({ type }: { type: "chat" | "calendar" }) {
-  return (
-    <span className={`dog-tab-icon ${type}`}>
-      <DoodleDog size={31} variant={type} />
-    </span>
-  );
 }
 
 function makeDraft(date: string, event?: CalendarEvent): EventDraft {
@@ -616,7 +552,7 @@ export default function App() {
       const url = URL.createObjectURL(blob);
       const a = document.createElement("a");
       a.href = url;
-      a.download = `db-workbench-${new Date().toISOString().slice(0, 10)}.json`;
+      a.download = `yuy-workbench-${new Date().toISOString().slice(0, 10)}.json`;
       a.click();
       URL.revokeObjectURL(url);
       setNotice("数据备份已生成");
@@ -639,10 +575,13 @@ export default function App() {
         <div className="login-orb login-orb-one" />
         <div className="login-orb login-orb-two" />
         <form className="login-card" onSubmit={unlock}>
-          <div className="dog-login-brand"><DoodleDog size={82} variant="hello" /><span className="dog-db-chip">DB</span></div>
-          <div className="login-copy">
-            <h1>DB 小狗工作台</h1>
-            <p>陪你聊天、记日程，也把重要的事慢慢记住。</p>
+          <div className="yuy-login-brand">
+            <img className="yuy-logo-img large" src="/yuy-app-icon.png" alt="小玉 YUY" />
+            <div className="login-copy">
+              <p className="eyebrow">YUY PERSONAL AI</p>
+              <h1>小玉 YUY</h1>
+              <p>你的私人 AI、日历与长期记忆。温柔陪伴，也认真帮你把事情做好。</p>
+            </div>
           </div>
           {error && <div className="alert error">{error}</div>}
           <label className="field">
@@ -657,7 +596,7 @@ export default function App() {
             />
           </label>
           <button className="primary-button" type="submit" disabled={!draftToken.trim() || verifyingToken}>
-            {verifyingToken ? "正在验证…" : "进入 DB"}
+            {verifyingToken ? "正在验证…" : "进入小玉"}
           </button>
           <small>验证成功后，本设备 30 天内免密。</small>
         </form>
@@ -689,10 +628,30 @@ export default function App() {
     );
   }
 
+  if (panel === "assistant") {
+    return (
+      <AssistantPanel
+        onBack={() => setPanel(null)}
+        onChoose={(role) => {
+          setPanel(null);
+          setView("chat");
+          const prompts: Record<Role, string> = {
+            media: "小玉，请切换到新媒体运营助手，帮我处理今天的内容与运营工作。",
+            health: "小玉，请作为健康咨询助手，帮我整理今天的身体状态和需要关注的事项。",
+            daily: "小玉，请作为日常助理，帮我安排今天最重要的事情。",
+            interior: "小玉，请作为软装学习伙伴，陪我学习和整理今天的设计灵感。",
+            journal: "小玉，请作为随笔记录员，帮我记录和整理今天的想法。",
+          };
+          setMessage(prompts[role]);
+        }}
+      />
+    );
+  }
+
   if (panel === "memory") {
     return (
       <MemoryPanel
-        onBack={() => setPanel("settings")}
+        onBack={() => setPanel(null)}
         mode={memoryMode}
         setMode={setMemoryMode}
         activeRole={activeRole}
@@ -704,20 +663,14 @@ export default function App() {
   }
 
   return (
-    <div className="app-shell">
-      <header className="topbar">
-        <button className="brand-button" onClick={() => setView("chat")} aria-label="返回聊天">
-          <span className="dog-brand-mark"><DoodleDog size={42} variant={view === "calendar" ? "calendar" : "chat"} /></span>
-          <span className="brand-copy">
-            <strong>{view === "chat" ? "DB 小狗助手" : "小狗日历"}</strong>
-            <small>
-              {view === "chat"
-                ? `${health?.configured ? "AI 在线" : "AI 待配置"} · ${health?.model || "同步中"}`
-                : monthTitle(calendarMonth)}
-            </small>
-          </span>
+    <div className="app-shell yuy-exact-shell">
+      <header className="topbar yuy-exact-topbar">
+        <button className="yuy-menu-button" onClick={() => setPanel("settings")} aria-label="菜单">☰</button>
+        <button className="yuy-center-brand" onClick={() => setView("chat")} aria-label="返回聊天">
+          <strong>{view === "chat" ? "YUY 小玉 AI" : "我的日程"}</strong>
+          <small>{view === "chat" ? "你的私人 AI 工作台" : monthTitle(calendarMonth)}</small>
         </button>
-        <button className="round-button" onClick={() => setPanel("settings")} aria-label="设置">•••</button>
+        <button className="yuy-flower-button" onClick={() => setPanel("assistant")} aria-label="小玉助手">✿</button>
       </header>
 
       {notice && <div className="toast">{notice}</div>}
@@ -754,17 +707,23 @@ export default function App() {
         )}
       </main>
 
-      <nav className="tab-bar" aria-label="主导航">
-        <button className={view === "chat" ? "active" : ""} onClick={() => setView("chat")}>
-          <DogTabIcon type="chat" />
-          <span>聊天</span>
+      <nav className="tab-bar yuy-five-tabs" aria-label="主导航">
+        <button className={view === "chat" && !panel ? "active" : ""} onClick={() => { setPanel(null); setView("chat"); }}>
+          <span className="tab-icon yuy-nav-image"><img src="/yuy-nav-chat.png" alt="" /></span><span>聊天</span>
         </button>
-        <button className={view === "calendar" ? "active" : ""} onClick={() => setView("calendar")}>
-          <DogTabIcon type="calendar" />
-          <span>日历</span>
+        <button className={view === "calendar" && !panel ? "active" : ""} onClick={() => { setPanel(null); setView("calendar"); }}>
+          <span className="tab-icon yuy-nav-image"><img src="/yuy-nav-calendar.png" alt="" /></span><span>日程</span>
+        </button>
+        <button onClick={() => setPanel("memory")}>
+          <span className="tab-icon yuy-nav-image"><img src="/yuy-nav-discover.png" alt="" /></span><span>发现</span>
+        </button>
+        <button onClick={() => setPanel("assistant")}>
+          <span className="tab-icon yuy-nav-image"><img src="/yuy-nav-assistant.png" alt="" /></span><span>助手</span>
+        </button>
+        <button onClick={() => setPanel("settings")}>
+          <span className="tab-icon yuy-nav-image"><img src="/yuy-nav-me.png" alt="" /></span><span>我的</span>
         </button>
       </nav>
-
       {eventDraft && (
         <EventEditor
           draft={eventDraft}
@@ -811,16 +770,18 @@ function ChatView({
   return (
     <section className="chat-page">
       <div className="chat-scroll">
+        <div className="yuy-poster-chat-banner">
+          <img src="/yuy-chat-banner.png" alt="今天也要元气满满哦，小玉和伙伴" />
+        </div>
+
         {!history.length && !loading && (
-          <div className="chat-welcome">
-            <div className="welcome-dog"><DoodleDog size={66} variant="hello" /><span>DB</span></div>
-            <p className="eyebrow">PRIVATE AI</p>
-            <h1>{greeting()}<br />今天想聊什么？</h1>
-            <p>聊天、计划、健康记录、工作复盘、灵感或日程，直接说就好。</p>
+          <div className="yuy-poster-intro-card">
+            <p>{greeting()}，今天想和小玉聊点什么？</p>
+            <small>学习、工作、生活、灵感、健康和日程，我都在哦。</small>
             <div className="prompt-row">
-              <button onClick={() => setMessage("帮我整理一下今天最重要的三件事")}>整理今天</button>
-              <button onClick={() => setMessage("我明天有哪些安排？")}>查看明天</button>
-              <button onClick={() => setMessage("帮我记录一个新的灵感")}>记录灵感</button>
+              <button onClick={() => setMessage("小玉，帮我整理一下今天最重要的三件事")}>🌸 整理今天</button>
+              <button onClick={() => setMessage("小玉，我明天有哪些安排？")}>🗓 看看明天</button>
+              <button onClick={() => setMessage("小玉，帮我记录一个新的灵感")}>✨ 记录灵感</button>
             </div>
           </div>
         )}
@@ -831,7 +792,7 @@ function ChatView({
               <div className="message-bubble user-bubble">{entry.user_text}</div>
             </div>
             <div className="message-row ai-row">
-              <div className="ai-avatar"><DoodleDog size={28} variant="chat" /></div>
+              <div className="ai-avatar"><img src="/yuy-app-icon.png" alt="小玉" /></div>
               <div className="ai-stack">
                 <div className="message-meta">
                   <span>{ROLES[entry.role].short}</span>
@@ -869,7 +830,7 @@ function ChatView({
 
         {sending && (
           <div className="message-row ai-row typing-row">
-            <div className="ai-avatar"><DoodleDog size={28} variant="chat" /></div>
+            <div className="ai-avatar"><img src="/yuy-app-icon.png" alt="小玉" /></div>
             <div className="typing-bubble"><i /><i /><i /></div>
           </div>
         )}
@@ -880,7 +841,7 @@ function ChatView({
         <textarea
           value={message}
           onChange={(e) => setMessage(e.target.value)}
-          placeholder="和 DB 聊点什么…"
+          placeholder="和小玉聊点什么…"
           rows={1}
           onKeyDown={(e) => {
             if (e.key === "Enter" && !e.shiftKey) {
@@ -931,7 +892,16 @@ function CalendarView({
 
   return (
     <section className="calendar-page">
-      <div className="month-card">
+      <div className="yuy-calendar-heading-card">
+        <div>
+          <p className="eyebrow">MY SCHEDULE</p>
+          <h1>我的日程</h1>
+          <span>彩色圆点代表不同类型，点击日期展开当天安排。</span>
+        </div>
+        <img src="/yuy-calendar-dog.png" alt="小玉的伙伴" />
+      </div>
+      <div className="month-card yuy-month-card yuy-exact-month-card">
+        <img className="calendar-mascot" src="/yuy-calendar-dog.png" alt="" aria-hidden="true" />
         <div className="month-toolbar">
           <button onClick={() => setMonth(addMonths(month, -1))} aria-label="上个月">‹</button>
           <strong>{monthTitle(month)}</strong>
@@ -980,7 +950,7 @@ function CalendarView({
           <button className="empty-card add-empty" onClick={onNew}>
             <span>＋</span>
             <strong>这天还没有安排</strong>
-            <small>点这里添加，或直接在聊天里告诉 DB。</small>
+            <small>点这里添加，或直接在聊天里告诉小玉。</small>
           </button>
         )}
 
@@ -1172,6 +1142,43 @@ function EventEditor({
   );
 }
 
+function AssistantPanel({
+  onBack,
+  onChoose,
+}: {
+  onBack: () => void;
+  onChoose: (role: Role) => void;
+}) {
+  return (
+    <div className="panel-page yuy-assistant-page">
+      <header className="panel-header">
+        <button className="back-button" onClick={onBack}>‹</button>
+        <strong>小玉助手</strong>
+        <span className="panel-spacer" />
+      </header>
+      <main className="panel-content">
+        <section className="yuy-assistant-hero">
+          <img src="/yuy-hero.png" alt="小玉和伙伴" />
+          <div>
+            <p className="eyebrow">YUY PERSONAL AI</p>
+            <h1>今天想让小玉<br />怎么陪你？</h1>
+            <p>选择一个方向，我会把对应提示直接带回聊天窗口。</p>
+          </div>
+        </section>
+        <section className="yuy-role-grid">
+          {(Object.keys(ROLES) as Role[]).map((role, index) => (
+            <button key={role} onClick={() => onChoose(role)}>
+              <span className={`yuy-role-flower f${index + 1}`}>✿</span>
+              <div><strong>{ROLES[role].name}</strong><small>{ROLES[role].short}模式</small></div>
+              <span>›</span>
+            </button>
+          ))}
+        </section>
+      </main>
+    </div>
+  );
+}
+
 function SettingsPanel({
   onBack,
   nativeShell,
@@ -1225,9 +1232,9 @@ function SettingsPanel({
       {error && <div className="alert error panel-alert">{error}</div>}
       <main className="panel-content">
         <section className="settings-hero">
-          <div className="settings-dog"><DoodleDog size={58} variant="settings" /></div>
+          <img className="yuy-logo-img medium" src="/yuy-app-icon.png" alt="小玉 YUY" />
           <div>
-            <h1>DB 小狗工作台</h1>
+            <h1>小玉 YUY 工作台</h1>
             <p>{health?.configured ? "AI 已连接" : "AI 需要配置"} · {providerName(health?.provider)}</p>
           </div>
         </section>

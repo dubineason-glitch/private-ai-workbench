@@ -8,8 +8,8 @@ struct SetupView: View {
 
     enum Field { case domain, token }
 
-    private let pink = Color(red: 0.97, green: 0.34, blue: 0.59)
-    private let softPink = Color(red: 1.0, green: 0.91, blue: 0.95)
+    private let pink = Color(red: 0.85, green: 0.44, blue: 0.62)
+    private let softPink = Color(red: 0.98, green: 0.90, blue: 0.93)
 
     var body: some View {
         NavigationStack {
@@ -30,35 +30,42 @@ struct SetupView: View {
                         Spacer(minLength: 56)
 
                         ZStack(alignment: .topTrailing) {
-                            Text("DB")
-                                .font(.system(size: 24, weight: .heavy, design: .rounded))
-                                .foregroundStyle(pink)
-                                .frame(width: 78, height: 78)
-                                .background(
-                                    LinearGradient(
-                                        colors: [Color.white, softPink, pink.opacity(0.26)],
-                                        startPoint: .topLeading,
-                                        endPoint: .bottomTrailing
+                            ZStack {
+                                RoundedRectangle(cornerRadius: 24, style: .continuous)
+                                    .fill(
+                                        LinearGradient(
+                                            colors: [Color.white, softPink, Color(red: 0.92, green: 0.88, blue: 0.98)],
+                                            startPoint: .topLeading,
+                                            endPoint: .bottomTrailing
+                                        )
                                     )
-                                )
-                                .clipShape(RoundedRectangle(cornerRadius: 24, style: .continuous))
-                                .overlay(
-                                    RoundedRectangle(cornerRadius: 24, style: .continuous)
-                                        .stroke(pink.opacity(0.18), lineWidth: 1)
-                                )
-                                .shadow(color: pink.opacity(0.18), radius: 24, y: 12)
+                                VStack(spacing: 1) {
+                                    Text("YUY")
+                                        .font(.system(size: 20, weight: .heavy, design: .rounded))
+                                        .foregroundStyle(pink)
+                                    Text("小玉")
+                                        .font(.system(size: 11, weight: .bold, design: .rounded))
+                                        .foregroundStyle(Color(red: 0.50, green: 0.42, blue: 0.62))
+                                }
+                            }
+                            .frame(width: 78, height: 78)
+                            .overlay(
+                                RoundedRectangle(cornerRadius: 24, style: .continuous)
+                                    .stroke(pink.opacity(0.18), lineWidth: 1)
+                            )
+                            .shadow(color: pink.opacity(0.18), radius: 24, y: 12)
 
-                            Image(systemName: "heart.fill")
-                                .font(.system(size: 10, weight: .bold))
-                                .foregroundStyle(pink)
+                            Image(systemName: "flower.fill")
+                                .font(.system(size: 11, weight: .bold))
+                                .foregroundStyle(Color(red: 0.96, green: 0.74, blue: 0.34))
                                 .offset(x: 4, y: -5)
                         }
 
-                        Text("DB 工作台")
+                        Text("小玉 YUY")
                             .font(.system(size: 31, weight: .bold, design: .rounded))
                             .padding(.top, 24)
 
-                        Text("输入你的工作台域名和访问口令。验证一次后，这个壳就会长期加载服务器上的最新界面。")
+                        Text("输入工作台域名和访问口令。验证一次后，小玉会长期加载服务器上的最新界面。")
                             .font(.system(size: 14))
                             .foregroundStyle(.secondary)
                             .multilineTextAlignment(.center)
@@ -125,7 +132,7 @@ struct SetupView: View {
                             .foregroundStyle(.white)
                             .background(
                                 LinearGradient(
-                                    colors: [Color(red: 1.0, green: 0.47, blue: 0.68), pink],
+                                    colors: [Color(red: 0.92, green: 0.63, blue: 0.75), pink],
                                     startPoint: .topLeading,
                                     endPoint: .bottomTrailing
                                 )
