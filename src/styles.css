@@ -1330,3 +1330,536 @@ body::before {
   transform: translateY(-1px) scale(1.04);
   filter: saturate(1.08) contrast(1.02);
 }
+
+
+/* ==========================================================
+   YUY v5 — strict visual reconstruction from approved UI board
+   The approved poster is the visual source of truth.
+   ========================================================== */
+:root{
+  --ref-paper:#fff3ed;
+  --ref-paper-2:#fff8f4;
+  --ref-ink:#684653;
+  --ref-muted:#a8818d;
+  --ref-pink:#e57b9e;
+  --ref-pink-2:#f5c7d3;
+  --ref-line:rgba(213,132,158,.34);
+}
+html,body,#root{
+  background:var(--ref-paper)!important;
+}
+body{
+  background-image:
+    radial-gradient(circle at 13px 11px, rgba(128,77,92,.035) 0 1px, transparent 1.3px),
+    radial-gradient(circle at 7px 5px, rgba(255,255,255,.42) 0 1px, transparent 1.3px),
+    linear-gradient(180deg,#fff4ef 0%,#fff0e9 100%)!important;
+  background-size:19px 19px,27px 27px,auto!important;
+}
+body::before{display:none!important}
+
+.yuy-reference-shell{
+  width:100%;
+  max-width:440px;
+  min-height:100dvh;
+  margin:0 auto;
+  position:relative;
+  overflow-x:hidden;
+  background:
+    radial-gradient(circle at 5% 36%,rgba(245,179,196,.16),transparent 21%),
+    radial-gradient(circle at 92% 54%,rgba(235,204,228,.12),transparent 24%),
+    var(--ref-paper);
+}
+.yuy-reference-shell .main{
+  width:100%!important;
+  max-width:440px!important;
+  margin:0 auto!important;
+}
+.yuy-reference-shell .chat-main{
+  padding:calc(env(safe-area-inset-top) + 6px) 10px calc(166px + env(safe-area-inset-bottom))!important;
+}
+.yuy-reference-shell .calendar-main{
+  padding:calc(env(safe-area-inset-top) + 6px) 10px calc(102px + env(safe-area-inset-bottom))!important;
+}
+
+/* Exact approved chat header crop. */
+.yuy-reference-chat-header{
+  position:relative;
+  width:100%;
+  margin:0 0 12px;
+  overflow:hidden;
+  border-radius:30px 30px 22px 22px;
+  background:#fbe4e6;
+  box-shadow:0 10px 28px rgba(157,91,113,.075);
+}
+.yuy-reference-chat-header img{
+  display:block;
+  width:100%;
+  height:auto;
+}
+.yuy-header-bell-hit{
+  position:absolute;
+  right:3.2%;
+  top:3%;
+  width:16%;
+  height:18%;
+  border:0;
+  background:transparent;
+  cursor:pointer;
+  -webkit-tap-highlight-color:transparent;
+}
+
+/* Message geometry follows the approved reference screen. */
+.yuy-reference-chat .chat-scroll{
+  display:block!important;
+}
+.reference-pair{
+  display:grid!important;
+  gap:8px!important;
+  margin:10px 0 18px!important;
+}
+.reference-user-row{
+  display:flex!important;
+  align-items:flex-end!important;
+  justify-content:flex-end!important;
+  gap:7px!important;
+  padding:0 5px 0 18%!important;
+}
+.user-message-stack{
+  max-width:76%;
+  display:grid;
+  justify-items:end;
+}
+.reference-user-row .user-bubble{
+  width:auto!important;
+  max-width:100%!important;
+  padding:10px 13px!important;
+  border-radius:17px 17px 5px 17px!important;
+  background:#f4c5d0!important;
+  border:1px solid rgba(210,112,143,.34)!important;
+  color:#69434f!important;
+  font-size:13px!important;
+  line-height:1.55!important;
+  box-shadow:none!important;
+}
+.user-avatar{
+  width:38px;
+  height:38px;
+  flex:0 0 38px;
+  border-radius:999px;
+  overflow:hidden;
+  margin-bottom:10px;
+}
+.user-avatar img{
+  width:100%;
+  height:100%;
+  object-fit:cover;
+  display:block;
+  border-radius:999px;
+}
+.bubble-time{
+  display:block;
+  margin:2px 4px 0 0;
+  color:#b18f99;
+  font-size:9px;
+  line-height:1;
+}
+.reference-ai-row{
+  display:flex!important;
+  align-items:flex-start!important;
+  gap:7px!important;
+  padding:0 15% 0 3px!important;
+}
+.reference-ai-row .ai-avatar{
+  width:43px!important;
+  height:43px!important;
+  flex:0 0 43px!important;
+  margin-top:2px!important;
+  border:0!important;
+  box-shadow:none!important;
+  background:transparent!important;
+}
+.reference-ai-row .ai-avatar img{
+  object-fit:cover!important;
+  mix-blend-mode:multiply;
+}
+.reference-ai-row .ai-stack{
+  width:auto!important;
+  max-width:100%!important;
+}
+.reference-ai-row .ai-bubble{
+  padding:10px 13px!important;
+  border-radius:5px 17px 17px 17px!important;
+  background:#fffaf6!important;
+  border:1px solid rgba(211,128,154,.30)!important;
+  color:#60434d!important;
+  font-size:13px!important;
+  line-height:1.58!important;
+  box-shadow:0 6px 18px rgba(130,76,96,.04)!important;
+}
+.reference-meta{
+  height:auto!important;
+  margin:2px 4px 0!important;
+  justify-content:flex-end!important;
+  font-size:9px!important;
+  color:#b18f99!important;
+}
+.reference-meta>span{display:none!important}
+
+.calendar-action-list{
+  margin-top:6px!important;
+  gap:6px!important;
+}
+.calendar-action-card{
+  border-radius:13px!important;
+  padding:9px 10px!important;
+  background:#fff9f4!important;
+  border:1px solid rgba(213,128,154,.28)!important;
+  box-shadow:none!important;
+}
+.calendar-action-card strong{font-size:11px!important}
+.calendar-action-card small{font-size:9px!important}
+
+/* Composer matches the approved pill above the tab bar. */
+.yuy-reference-chat .composer{
+  left:50%!important;
+  bottom:calc(86px + env(safe-area-inset-bottom))!important;
+  transform:translateX(-50%)!important;
+  width:min(410px,calc(100% - 24px))!important;
+  min-height:54px!important;
+  max-height:94px!important;
+  padding:6px 7px!important;
+  border-radius:28px!important;
+  border:1px solid rgba(211,126,153,.32)!important;
+  background:rgba(255,250,246,.97)!important;
+  box-shadow:0 8px 20px rgba(125,77,94,.055)!important;
+  display:flex!important;
+  align-items:center!important;
+  z-index:90!important;
+}
+.yuy-reference-chat .composer::before{
+  content:'✿'!important;
+  width:38px!important;
+  height:38px!important;
+  flex:0 0 38px!important;
+  margin:0 4px 0 0!important;
+  border:1px solid rgba(218,127,157,.30);
+  border-radius:999px;
+  color:#d96f94!important;
+  font-size:19px!important;
+  background:#fff8f3;
+  display:grid!important;
+  place-items:center!important;
+}
+.yuy-reference-chat .composer textarea{
+  min-height:38px!important;
+  max-height:74px!important;
+  padding:9px 6px!important;
+  line-height:20px!important;
+  color:#674652!important;
+  font-size:13px!important;
+  overflow-y:auto!important;
+}
+.yuy-reference-chat .composer textarea::placeholder{color:#b99ca5!important}
+.yuy-reference-chat .send-button{
+  width:42px!important;
+  height:42px!important;
+  flex:0 0 42px!important;
+  border-radius:999px!important;
+  margin:0!important;
+  background:#e17aa0!important;
+  color:#fff!important;
+  box-shadow:none!important;
+  font-size:20px!important;
+}
+
+/* Exact bottom navigation crops from the approved reference.
+   Five transparent hit areas keep every item fully functional. */
+.yuy-reference-tabs{
+  position:fixed;
+  z-index:100;
+  left:50%;
+  bottom:calc(6px + env(safe-area-inset-bottom));
+  transform:translateX(-50%);
+  width:min(410px,calc(100% - 16px));
+  aspect-ratio:395 / 75;
+  background-repeat:no-repeat;
+  background-size:100% 100%;
+  background-position:center;
+  border:0;
+  filter:drop-shadow(0 5px 12px rgba(130,80,96,.055));
+  display:grid;
+  grid-template-columns:1fr 1fr 1.35fr 1fr 1fr;
+}
+.yuy-reference-tabs.chat-active{background-image:url('/yuy-nav-chat-exact.png')}
+.yuy-reference-tabs.calendar-active{background-image:url('/yuy-nav-calendar-exact.png')}
+.yuy-reference-tabs .yuy-tab-hit{
+  min-width:0;
+  border:0;
+  background:transparent;
+  cursor:pointer;
+  -webkit-tap-highlight-color:transparent;
+}
+.yuy-reference-tabs .tab-plus{transform:translateY(-8%)}
+
+/* Exact calendar header crop. */
+.yuy-reference-calendar-header{
+  position:relative;
+  width:100%;
+  overflow:hidden;
+  border-radius:24px 24px 10px 10px;
+  margin:0 0 2px;
+  background:#fff8f4;
+}
+.yuy-reference-calendar-header img{
+  display:block;
+  width:100%;
+  height:auto;
+}
+.yuy-calendar-add-hit{
+  position:absolute;
+  right:1.5%;
+  top:2%;
+  width:17%;
+  height:92%;
+  border:0;
+  background:transparent;
+  cursor:pointer;
+  -webkit-tap-highlight-color:transparent;
+}
+
+/* Month card rebuilt to reference proportions. */
+.yuy-reference-calendar .month-card{
+  position:relative!important;
+  margin:0 0 10px!important;
+  padding:4px 9px 10px!important;
+  border-radius:24px!important;
+  background:#fffaf7!important;
+  border:1px solid rgba(211,127,153,.30)!important;
+  box-shadow:0 8px 22px rgba(124,73,91,.045)!important;
+}
+.yuy-reference-calendar .month-toolbar{
+  min-height:46px!important;
+  padding:1px 4px 0!important;
+}
+.yuy-reference-calendar .month-toolbar strong{
+  font-size:17px!important;
+  font-weight:620!important;
+  color:#49363e!important;
+}
+.yuy-reference-calendar .month-toolbar button{
+  width:35px!important;
+  height:35px!important;
+  font-size:24px!important;
+  color:#76525f!important;
+}
+.yuy-reference-calendar .weekday-row{
+  margin:0!important;
+  min-height:25px!important;
+  color:#795764!important;
+  font-size:10px!important;
+}
+.yuy-reference-calendar .month-grid{
+  gap:0!important;
+  grid-auto-rows:44px!important;
+}
+.yuy-reference-calendar .day-cell{
+  min-height:44px!important;
+  border-radius:0!important;
+  padding:3px 0 0!important;
+  background:transparent!important;
+  box-shadow:none!important;
+  color:#3f373a!important;
+  font-size:12px!important;
+}
+.yuy-reference-calendar .day-cell.muted{color:#d4c8cc!important}
+.yuy-reference-calendar .day-number{
+  width:32px!important;
+  height:32px!important;
+  display:grid!important;
+  place-items:center!important;
+  margin:0 auto!important;
+  border-radius:999px!important;
+}
+.yuy-reference-calendar .day-cell.selected{
+  background:transparent!important;
+  color:#fff!important;
+  box-shadow:none!important;
+}
+.yuy-reference-calendar .day-cell.selected .day-number{
+  background:#df7598!important;
+  color:#fff!important;
+  box-shadow:0 5px 12px rgba(205,99,137,.18)!important;
+  font-weight:800!important;
+}
+.yuy-reference-calendar .day-cell.today:not(.selected){
+  box-shadow:none!important;
+}
+.yuy-reference-calendar .day-cell.today:not(.selected) .day-number{
+  box-shadow:inset 0 0 0 1.5px #e09ab1!important;
+}
+.yuy-reference-calendar .event-dots{
+  min-height:6px!important;
+  margin-top:-2px!important;
+  gap:2px!important;
+}
+.yuy-reference-calendar .event-dots i{
+  width:4px!important;
+  height:4px!important;
+}
+
+/* Agenda area follows the reference list. */
+.yuy-reference-calendar .agenda-section{
+  margin-top:0!important;
+  padding:0 1px!important;
+}
+.reference-agenda-heading{
+  min-height:40px!important;
+  padding:0 2px 4px!important;
+  display:flex!important;
+  align-items:center!important;
+  justify-content:space-between!important;
+  gap:10px!important;
+}
+.reference-agenda-heading h2{
+  margin:0!important;
+  color:#4d3c43!important;
+  font-size:15px!important;
+  font-weight:700!important;
+}
+.agenda-expand{
+  color:#9e7f8a;
+  font-size:10px;
+  white-space:nowrap;
+}
+.yuy-reference-calendar .agenda-list{gap:5px!important}
+.yuy-reference-calendar .swipe-shell{
+  min-height:58px!important;
+  height:58px!important;
+  border-radius:13px!important;
+  overflow:hidden!important;
+}
+.reference-event-card{
+  min-height:58px!important;
+  height:58px!important;
+  border-radius:13px!important;
+  padding:0 10px!important;
+  display:grid!important;
+  grid-template-columns:24px 43px minmax(0,1fr) auto!important;
+  align-items:center!important;
+  gap:4px!important;
+  background:#fffaf7!important;
+  border:1px solid rgba(210,126,152,.26)!important;
+  box-shadow:none!important;
+}
+.reference-event-flower{
+  font-size:19px;
+  line-height:1;
+  text-align:center;
+}
+.reference-event-time{
+  font-size:11px;
+  color:#4a3a40;
+  font-weight:650;
+  white-space:nowrap;
+}
+.reference-event-title{
+  min-width:0;
+  color:#4d3b42;
+  font-size:11px;
+  font-weight:650;
+  white-space:nowrap;
+  overflow:hidden;
+  text-overflow:ellipsis;
+}
+.reference-event-card .category-pill{
+  padding:4px 9px!important;
+  min-width:40px!important;
+  text-align:center!important;
+  font-size:9px!important;
+  border-radius:999px!important;
+}
+.yuy-reference-calendar .swipe-action{
+  width:64px!important;
+  min-width:64px!important;
+  font-size:15px!important;
+}
+.yuy-reference-calendar .swipe-action.left{background:#b5a2e5!important}
+.yuy-reference-calendar .swipe-action.right{background:#ef7895!important}
+.yuy-reference-calendar .empty-card{
+  min-height:96px!important;
+  border-radius:18px!important;
+  padding:18px!important;
+  background:#fffaf7!important;
+  border:1px dashed rgba(211,126,153,.29)!important;
+}
+.yuy-reference-calendar .empty-card>span{font-size:30px!important}
+.yuy-reference-calendar .empty-card strong{font-size:14px!important}
+.yuy-reference-calendar .empty-card small{font-size:10px!important}
+
+/* Panels: same paper, tighter mobile geometry so the whole product feels one system. */
+.panel-page{
+  max-width:440px;
+  margin:0 auto;
+  min-height:100dvh;
+  background:var(--ref-paper)!important;
+}
+.panel-header{
+  height:calc(72px + env(safe-area-inset-top))!important;
+  padding:calc(10px + env(safe-area-inset-top)) 14px 8px!important;
+  background:#fff4ef!important;
+}
+.panel-content{
+  max-width:440px!important;
+  padding:18px 14px 36px!important;
+}
+.settings-hero,.settings-card,.memory-card,.metric-card,.yuy-assistant-hero,.yuy-role-grid button{
+  border-color:rgba(211,126,153,.28)!important;
+  background:#fffaf7!important;
+  box-shadow:0 7px 20px rgba(129,78,96,.04)!important;
+}
+
+/* Small phone tuning. */
+@media(max-width:390px){
+  .yuy-reference-shell .chat-main,
+  .yuy-reference-shell .calendar-main{padding-left:8px!important;padding-right:8px!important}
+  .yuy-reference-chat-header{border-radius:26px 26px 20px 20px}
+  .reference-user-row{padding-left:14%!important}
+  .reference-ai-row{padding-right:11%!important}
+  .yuy-reference-chat .composer{width:calc(100% - 16px)!important}
+  .yuy-reference-tabs{width:calc(100% - 10px)}
+}
+
+/* Final pixel-tuning against the approved calendar reference. */
+.yuy-reference-calendar{gap:4px!important}
+.yuy-reference-calendar .month-card{margin-top:0!important}
+.yuy-reference-calendar .agenda-list{
+  display:block!important;
+  gap:0!important;
+  overflow:hidden!important;
+  border:1px solid rgba(210,126,152,.26)!important;
+  border-radius:17px!important;
+  background:#fffaf7!important;
+  box-shadow:0 6px 18px rgba(130,76,96,.035)!important;
+}
+.yuy-reference-calendar .swipe-shell{
+  border-radius:0!important;
+  border-bottom:1px solid rgba(215,150,170,.16)!important;
+}
+.yuy-reference-calendar .swipe-shell:last-child{border-bottom:0!important}
+.yuy-reference-calendar .reference-event-card{
+  border:0!important;
+  border-radius:0!important;
+  background:transparent!important;
+}
+.reference-ai-row .ai-avatar{
+  border-radius:0!important;
+  overflow:visible!important;
+}
+.reference-ai-row .ai-avatar img{
+  border-radius:0!important;
+  object-fit:contain!important;
+}
+
+/* Keep swipe actions hidden behind the white row until the card is moved. */
+.yuy-reference-calendar .swipe-shell{background:#fffaf7!important}
+.yuy-reference-calendar .reference-event-card{background:#fffaf7!important;width:100%!important}

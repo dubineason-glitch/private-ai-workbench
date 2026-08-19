@@ -576,7 +576,7 @@ export default function App() {
         <div className="login-orb login-orb-two" />
         <form className="login-card" onSubmit={unlock}>
           <div className="yuy-login-brand">
-            <img className="yuy-logo-img large" src="/yuy-app-icon.png" alt="小玉 YUY" />
+            <img className="yuy-logo-img large" src="/yuy-app-icon-exact.png" alt="小玉 YUY" />
             <div className="login-copy">
               <p className="eyebrow">YUY PERSONAL AI</p>
               <h1>小玉 YUY</h1>
@@ -663,16 +663,7 @@ export default function App() {
   }
 
   return (
-    <div className="app-shell yuy-exact-shell">
-      <header className="topbar yuy-exact-topbar">
-        <button className="yuy-menu-button" onClick={() => setPanel("settings")} aria-label="菜单">☰</button>
-        <button className="yuy-center-brand" onClick={() => setView("chat")} aria-label="返回聊天">
-          <strong>{view === "chat" ? "YUY 小玉 AI" : "我的日程"}</strong>
-          <small>{view === "chat" ? "你的私人 AI 工作台" : monthTitle(calendarMonth)}</small>
-        </button>
-        <button className="yuy-flower-button" onClick={() => setPanel("assistant")} aria-label="小玉助手">✿</button>
-      </header>
-
+    <div className="app-shell yuy-reference-shell">
       {notice && <div className="toast">{notice}</div>}
       {error && <div className="alert error floating-alert">{error}</div>}
 
@@ -689,6 +680,7 @@ export default function App() {
             lastCalendarActions={lastCalendarActions}
             lastActionEntryId={lastActionEntryId}
             onCalendarEvent={openCalendarForEvent}
+            onOpenSettings={() => setPanel("settings")}
           />
         ) : (
           <CalendarView
@@ -707,22 +699,15 @@ export default function App() {
         )}
       </main>
 
-      <nav className="tab-bar yuy-five-tabs" aria-label="主导航">
-        <button className={view === "chat" && !panel ? "active" : ""} onClick={() => { setPanel(null); setView("chat"); }}>
-          <span className="tab-icon yuy-nav-image"><img src="/yuy-nav-chat.png" alt="" /></span><span>聊天</span>
-        </button>
-        <button className={view === "calendar" && !panel ? "active" : ""} onClick={() => { setPanel(null); setView("calendar"); }}>
-          <span className="tab-icon yuy-nav-image"><img src="/yuy-nav-calendar.png" alt="" /></span><span>日程</span>
-        </button>
-        <button onClick={() => setPanel("memory")}>
-          <span className="tab-icon yuy-nav-image"><img src="/yuy-nav-discover.png" alt="" /></span><span>发现</span>
-        </button>
-        <button onClick={() => setPanel("assistant")}>
-          <span className="tab-icon yuy-nav-image"><img src="/yuy-nav-assistant.png" alt="" /></span><span>助手</span>
-        </button>
-        <button onClick={() => setPanel("settings")}>
-          <span className="tab-icon yuy-nav-image"><img src="/yuy-nav-me.png" alt="" /></span><span>我的</span>
-        </button>
+      <nav
+        className={`yuy-reference-tabs ${view === "calendar" ? "calendar-active" : "chat-active"}`}
+        aria-label="主导航"
+      >
+        <button className="yuy-tab-hit tab-chat" aria-label="聊天" onClick={() => { setPanel(null); setView("chat"); }} />
+        <button className="yuy-tab-hit tab-calendar" aria-label="日程" onClick={() => { setPanel(null); setView("calendar"); }} />
+        <button className="yuy-tab-hit tab-plus" aria-label="小玉助手" onClick={() => setPanel("assistant")} />
+        <button className="yuy-tab-hit tab-discover" aria-label="发现" onClick={() => setPanel("memory")} />
+        <button className="yuy-tab-hit tab-me" aria-label="我的" onClick={() => setPanel("settings")} />
       </nav>
       {eventDraft && (
         <EventEditor
@@ -755,6 +740,7 @@ function ChatView({
   lastCalendarActions,
   lastActionEntryId,
   onCalendarEvent,
+  onOpenSettings,
 }: {
   history: Entry[];
   loading: boolean;
@@ -766,39 +752,33 @@ function ChatView({
   lastCalendarActions: CalendarActionResult[];
   lastActionEntryId: string;
   onCalendarEvent: (event: CalendarEvent) => void;
+  onOpenSettings: () => void;
 }) {
   return (
-    <section className="chat-page">
+    <section className="chat-page yuy-reference-chat">
       <div className="chat-scroll">
-        <div className="yuy-poster-chat-banner">
-          <img src="/yuy-chat-banner.png" alt="今天也要元气满满哦，小玉和伙伴" />
+        <div className="yuy-reference-chat-header">
+          <img src="/yuy-chat-header-exact.png" alt="YUY 小玉" />
+          <button className="yuy-header-bell-hit" onClick={onOpenSettings} aria-label="设置" />
         </div>
 
-        {!history.length && !loading && (
-          <div className="yuy-poster-intro-card">
-            <p>{greeting()}，今天想和小玉聊点什么？</p>
-            <small>学习、工作、生活、灵感、健康和日程，我都在哦。</small>
-            <div className="prompt-row">
-              <button onClick={() => setMessage("小玉，帮我整理一下今天最重要的三件事")}>🌸 整理今天</button>
-              <button onClick={() => setMessage("小玉，我明天有哪些安排？")}>🗓 看看明天</button>
-              <button onClick={() => setMessage("小玉，帮我记录一个新的灵感")}>✨ 记录灵感</button>
-            </div>
-          </div>
-        )}
-
         {history.map((entry) => (
-          <div className="conversation-pair" key={entry.id}>
-            <div className="message-row user-row">
-              <div className="message-bubble user-bubble">{entry.user_text}</div>
+          <div className="conversation-pair reference-pair" key={entry.id}>
+            <div className="message-row user-row reference-user-row">
+              <div className="user-message-stack">
+                <div className="message-bubble user-bubble">{entry.user_text}</div>
+                <time className="bubble-time user-time">{friendlyDateTime(entry.created_at)}</time>
+              </div>
+              <div className="user-avatar"><img src="/yuy-user-avatar-exact.png" alt="" /></div>
             </div>
-            <div className="message-row ai-row">
-              <div className="ai-avatar"><img src="/yuy-app-icon.png" alt="小玉" /></div>
+            <div className="message-row ai-row reference-ai-row">
+              <div className="ai-avatar"><img src="/yuy-dog-avatar-exact.png" alt="小玉伙伴" /></div>
               <div className="ai-stack">
-                <div className="message-meta">
+                <div className="message-bubble ai-bubble">{entry.assistant_text}</div>
+                <div className="message-meta reference-meta">
                   <span>{ROLES[entry.role].short}</span>
                   <time>{friendlyDateTime(entry.created_at)}</time>
                 </div>
-                <div className="message-bubble ai-bubble">{entry.assistant_text}</div>
                 {entry.health_signal !== "none" && (
                   <div className={`health-inline ${entry.health_signal}`}>
                     {entry.health_signal === "urgent" ? "这条信息包含需要尽快线下处理的健康风险。" : "这条健康信息建议结合实际情况持续观察。"}
@@ -830,7 +810,7 @@ function ChatView({
 
         {sending && (
           <div className="message-row ai-row typing-row">
-            <div className="ai-avatar"><img src="/yuy-app-icon.png" alt="小玉" /></div>
+            <div className="ai-avatar"><img src="/yuy-dog-avatar-exact.png" alt="小玉伙伴" /></div>
             <div className="typing-bubble"><i /><i /><i /></div>
           </div>
         )}
@@ -841,7 +821,7 @@ function ChatView({
         <textarea
           value={message}
           onChange={(e) => setMessage(e.target.value)}
-          placeholder="和小玉聊点什么…"
+          placeholder="和小玉聊点什么吧..."
           rows={1}
           onKeyDown={(e) => {
             if (e.key === "Enter" && !e.shiftKey) {
@@ -850,7 +830,7 @@ function ChatView({
             }
           }}
         />
-        <button type="submit" className="send-button" disabled={!message.trim() || sending} aria-label="发送">↑</button>
+        <button type="submit" className="send-button" disabled={!message.trim() || sending} aria-label="发送">{message.trim() ? "↑" : "♩"}</button>
       </form>
     </section>
   );
@@ -884,24 +864,16 @@ function CalendarView({
   const cells = calendarCells(month);
   const today = dateKey(new Date());
   const selected = new Date(`${selectedDate}T12:00:00`);
-  const selectedLabel = new Intl.DateTimeFormat("zh-CN", {
-    month: "long",
-    day: "numeric",
-    weekday: "short",
-  }).format(selected);
+  const selectedWeekday = new Intl.DateTimeFormat("zh-CN", { weekday: "long" }).format(selected);
+  const selectedLabel = `${selected.getMonth() + 1}月${selected.getDate()}日 · ${selectedWeekday}`;
 
   return (
-    <section className="calendar-page">
-      <div className="yuy-calendar-heading-card">
-        <div>
-          <p className="eyebrow">MY SCHEDULE</p>
-          <h1>我的日程</h1>
-          <span>彩色圆点代表不同类型，点击日期展开当天安排。</span>
-        </div>
-        <img src="/yuy-calendar-dog.png" alt="小玉的伙伴" />
+    <section className="calendar-page yuy-reference-calendar">
+      <div className="yuy-reference-calendar-header">
+        <img src="/yuy-calendar-header-exact.png" alt="日程" />
+        <button className="yuy-calendar-add-hit" onClick={onNew} aria-label="新建日程" />
       </div>
       <div className="month-card yuy-month-card yuy-exact-month-card">
-        <img className="calendar-mascot" src="/yuy-calendar-dog.png" alt="" aria-hidden="true" />
         <div className="month-toolbar">
           <button onClick={() => setMonth(addMonths(month, -1))} aria-label="上个月">‹</button>
           <strong>{monthTitle(month)}</strong>
@@ -937,12 +909,9 @@ function CalendarView({
       </div>
 
       <div className="agenda-section">
-        <div className="agenda-heading">
-          <div>
-            <p className="eyebrow">AGENDA</p>
-            <h2>{selectedLabel}{selectedDate === today ? " · 今天" : ""}</h2>
-          </div>
-          <button className="add-event-button" onClick={onNew}>＋</button>
+        <div className="agenda-heading reference-agenda-heading">
+          <h2>{selectedLabel}{selectedDate === today ? " · 今天" : ""}</h2>
+          <span className="agenda-expand">展开全部⌄</span>
         </div>
 
         {loading && !selectedEvents.length && <div className="empty-card">正在同步日历…</div>}
@@ -1027,7 +996,7 @@ function SwipeableEventCard({
         <small>删除</small>
       </button>
       <div
-        className="event-card"
+        className="event-card reference-event-card"
         style={{ transform: `translateX(${offset}px)` }}
         onPointerDown={pointerDown}
         onPointerMove={pointerMove}
@@ -1037,17 +1006,12 @@ function SwipeableEventCard({
           if (!moved.current && Math.abs(offset) < 8) onEdit();
         }}
       >
-        <span className={`category-line ${CATEGORY_META[event.category].className}`} />
-        <div className="event-card-main">
-          <div className="event-title-row">
-            <h3>{event.title}</h3>
-            <span className={`category-pill ${CATEGORY_META[event.category].className}`}>
-              {CATEGORY_META[event.category].label}
-            </span>
-          </div>
-          <div className="event-time">{event.status === "completed" ? "✓ " : ""}{friendlyTime(event)}</div>
-          {event.note && <p>{event.note}</p>}
-        </div>
+        <span className="reference-event-flower" style={{ color: CATEGORY_META[event.category].color }}>✿</span>
+        <div className="reference-event-time">{event.status === "completed" ? "✓ " : ""}{friendlyTime(event).split(" – ")[0]}</div>
+        <div className="reference-event-title">{event.title}</div>
+        <span className={`category-pill ${CATEGORY_META[event.category].className}`}>
+          {CATEGORY_META[event.category].label}
+        </span>
       </div>
     </div>
   );
@@ -1232,7 +1196,7 @@ function SettingsPanel({
       {error && <div className="alert error panel-alert">{error}</div>}
       <main className="panel-content">
         <section className="settings-hero">
-          <img className="yuy-logo-img medium" src="/yuy-app-icon.png" alt="小玉 YUY" />
+          <img className="yuy-logo-img medium" src="/yuy-app-icon-exact.png" alt="小玉 YUY" />
           <div>
             <h1>小玉 YUY 工作台</h1>
             <p>{health?.configured ? "AI 已连接" : "AI 需要配置"} · {providerName(health?.provider)}</p>
