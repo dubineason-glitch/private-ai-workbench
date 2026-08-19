@@ -2051,3 +2051,353 @@ body::before{display:none!important}
     padding-right:9%!important;
   }
 }
+
+/* =========================================================
+   YUY v5.2 structural UI correction
+   - real HTML text for welcome bubble and bottom labels
+   - persistent bottom navigation on chat/calendar/memory/assistant/settings
+   - no screenshot edge/white seam above bottom navigation
+   - centered composer controls and centered settings/assistant identity
+   ========================================================= */
+
+/* Chat hero is now only illustration; the welcome copy is live HTML. */
+.yuy-chat-hero-card{
+  position:relative;
+  width:100%;
+  margin:0 0 20px;
+  padding-bottom:48px;
+}
+.yuy-chat-hero-card .yuy-reference-chat-header{
+  margin:0!important;
+  border-radius:30px!important;
+  overflow:hidden!important;
+  background:#f7dfe4!important;
+  box-shadow:0 8px 22px rgba(145,85,104,.055)!important;
+}
+.yuy-chat-hero-card .yuy-reference-chat-header img{
+  width:100%!important;
+  height:auto!important;
+  margin:0!important;
+  object-fit:cover!important;
+  object-position:center!important;
+  display:block!important;
+}
+.yuy-welcome-bubble{
+  position:absolute;
+  left:50%;
+  bottom:0;
+  transform:translateX(-50%);
+  width:min(76%,320px);
+  min-height:84px;
+  padding:15px 18px 14px;
+  display:grid;
+  place-items:center;
+  align-content:center;
+  gap:5px;
+  text-align:center;
+  color:#64434e;
+  background:#fffaf6;
+  border:1px solid rgba(210,126,151,.28);
+  border-radius:20px;
+  box-shadow:0 8px 20px rgba(130,76,95,.06);
+  z-index:3;
+}
+.yuy-welcome-bubble strong{
+  font-size:14px;
+  line-height:1.35;
+  font-weight:750;
+  letter-spacing:.01em;
+}
+.yuy-welcome-bubble span{
+  font-size:13px;
+  line-height:1.35;
+  font-weight:600;
+}
+.yuy-welcome-bubble b{
+  color:#df7398;
+  font-size:15px;
+}
+
+/* Chat message avatars: symmetrical alignment and fuller images. */
+.reference-user-row{
+  gap:8px!important;
+  padding-right:2px!important;
+}
+.user-avatar{
+  width:42px!important;
+  height:42px!important;
+  flex:0 0 42px!important;
+  margin-bottom:2px!important;
+  display:grid!important;
+  place-items:center!important;
+}
+.user-avatar img{
+  width:116%!important;
+  height:116%!important;
+  transform:none!important;
+  object-fit:cover!important;
+  object-position:center 42%!important;
+}
+.reference-ai-row{
+  gap:8px!important;
+  padding-left:2px!important;
+}
+.reference-ai-row .ai-avatar,
+.typing-row .ai-avatar{
+  width:46px!important;
+  height:46px!important;
+  flex:0 0 46px!important;
+  margin-top:0!important;
+  border-radius:14px!important;
+  display:grid!important;
+  place-items:center!important;
+}
+.reference-ai-row .ai-avatar img,
+.typing-row .ai-avatar img{
+  width:118%!important;
+  height:118%!important;
+  transform:none!important;
+  object-fit:cover!important;
+  object-position:center!important;
+}
+
+/* Composer rebuilt as a strict 3-column control: left icon / text / right icon. */
+.yuy-reference-chat .composer.yuy-composer-v52{
+  left:50%!important;
+  bottom:calc(88px + env(safe-area-inset-bottom))!important;
+  transform:translateX(-50%)!important;
+  width:min(416px,calc(100% - 20px))!important;
+  min-height:58px!important;
+  max-height:104px!important;
+  padding:6px!important;
+  display:grid!important;
+  grid-template-columns:46px minmax(0,1fr) 46px!important;
+  align-items:center!important;
+  gap:4px!important;
+  border-radius:30px!important;
+  border:1px solid rgba(211,126,153,.31)!important;
+  background:#fffaf7!important;
+  box-shadow:0 7px 18px rgba(135,81,99,.045)!important;
+  overflow:hidden!important;
+}
+.yuy-reference-chat .composer.yuy-composer-v52::before{
+  display:none!important;
+  content:none!important;
+}
+.yuy-composer-v52 .composer-leading{
+  width:42px!important;
+  height:42px!important;
+  min-width:42px!important;
+  margin:0!important;
+  padding:0!important;
+  border:1px solid rgba(216,128,156,.30)!important;
+  border-radius:999px!important;
+  background:#fff8f4!important;
+  color:#da7498!important;
+  display:grid!important;
+  place-items:center!important;
+  font-size:20px!important;
+  line-height:1!important;
+  cursor:pointer!important;
+  overflow:hidden!important;
+}
+.yuy-reference-chat .composer.yuy-composer-v52 textarea{
+  width:100%!important;
+  min-width:0!important;
+  min-height:40px!important;
+  max-height:82px!important;
+  margin:0!important;
+  padding:9px 8px!important;
+  border:0!important;
+  outline:0!important;
+  background:transparent!important;
+  box-shadow:none!important;
+  color:#654550!important;
+  font-size:14px!important;
+  font-weight:470!important;
+  line-height:22px!important;
+  text-align:left!important;
+}
+.yuy-reference-chat .composer.yuy-composer-v52 textarea::placeholder{
+  color:#b79aa4!important;
+  opacity:1!important;
+}
+.yuy-reference-chat .composer.yuy-composer-v52 .send-button{
+  width:42px!important;
+  height:42px!important;
+  min-width:42px!important;
+  margin:0!important;
+  padding:0!important;
+  border:0!important;
+  border-radius:999px!important;
+  display:grid!important;
+  place-items:center!important;
+  align-self:center!important;
+  justify-self:end!important;
+  color:#fff!important;
+  background:#e47da2!important;
+  box-shadow:none!important;
+  overflow:hidden!important;
+}
+.yuy-composer-v52 .send-button.idle{
+  color:white!important;
+  background:#e47da2!important;
+}
+.yuy-composer-v52 .mic-svg{
+  width:23px;
+  height:23px;
+  display:block;
+}
+.yuy-composer-v52 .send-arrow{
+  font-size:22px;
+  line-height:1;
+  transform:translateY(-1px);
+}
+
+/* Live bottom navigation: icon images only, all labels are HTML text. */
+.yuy-v52-tabs{
+  position:fixed;
+  z-index:110;
+  left:50%;
+  bottom:0;
+  transform:translateX(-50%);
+  width:min(440px,100%);
+  height:calc(82px + env(safe-area-inset-bottom));
+  padding:8px 14px calc(8px + env(safe-area-inset-bottom));
+  display:grid;
+  grid-template-columns:1fr 1fr 1.18fr 1fr 1fr;
+  align-items:end;
+  gap:2px;
+  background:rgba(255,242,236,.985);
+  border:0;
+  border-top:1px solid rgba(217,129,156,.16);
+  box-shadow:0 -10px 24px rgba(164,95,117,.035);
+  backdrop-filter:blur(18px) saturate(1.05);
+}
+.yuy-v52-tabs::before,
+.yuy-v52-tabs::after{
+  content:none!important;
+  display:none!important;
+}
+.yuy-v52-tabs button{
+  position:relative;
+  min-width:0;
+  min-height:62px;
+  padding:2px 0 0;
+  border:0;
+  background:transparent;
+  display:flex;
+  flex-direction:column;
+  align-items:center;
+  justify-content:flex-end;
+  gap:2px;
+  color:#8c6f79;
+  cursor:pointer;
+  -webkit-tap-highlight-color:transparent;
+}
+.yuy-v52-tabs .nav-icon-wrap{
+  width:38px;
+  height:38px;
+  display:grid;
+  place-items:center;
+  overflow:hidden;
+}
+.yuy-v52-tabs .nav-icon-wrap img{
+  display:block;
+  width:31px;
+  height:31px;
+  object-fit:contain;
+  mix-blend-mode:multiply;
+  filter:saturate(.82) opacity(.84);
+}
+.yuy-v52-tabs button.active .nav-icon-wrap img{
+  transform:scale(1.08);
+  filter:saturate(1.12) opacity(1);
+}
+.yuy-v52-tabs .nav-label{
+  font-size:11px;
+  line-height:14px;
+  font-weight:520;
+  letter-spacing:.01em;
+  white-space:nowrap;
+}
+.yuy-v52-tabs button.active .nav-label{
+  color:#d7658e;
+  font-weight:700;
+}
+.yuy-v52-tabs .nav-plus{
+  min-height:68px;
+  justify-content:center;
+  transform:translateY(-7px);
+}
+.yuy-v52-tabs .plus-flower{
+  width:64px;
+  height:58px;
+  display:grid;
+  place-items:center;
+  background:linear-gradient(180deg,#f9bbcf,#f29bb9);
+  border:1px solid rgba(218,116,151,.28);
+  clip-path:polygon(50% 0%,64% 15%,83% 9%,89% 29%,100% 50%,88% 69%,83% 91%,63% 84%,50% 100%,36% 84%,17% 91%,12% 69%,0% 50%,12% 30%,17% 9%,37% 15%);
+  filter:drop-shadow(0 5px 8px rgba(203,104,140,.16));
+}
+.yuy-v52-tabs .plus-flower b{
+  color:white;
+  font-size:35px;
+  line-height:1;
+  font-weight:350;
+  transform:translateY(-1px);
+}
+.yuy-v52-tabs .nav-plus.active .plus-flower{
+  background:linear-gradient(180deg,#f395b7,#e67da4);
+}
+
+/* Keep bottom navigation present and keep panel content clear of it. */
+.panel-shell-with-nav{
+  min-height:100dvh;
+  padding-bottom:calc(82px + env(safe-area-inset-bottom));
+}
+.panel-shell-with-nav .panel-page{
+  min-height:calc(100dvh - 82px - env(safe-area-inset-bottom));
+  padding-bottom:calc(94px + env(safe-area-inset-bottom))!important;
+}
+.panel-shell-with-nav .panel-content{
+  padding-bottom:calc(104px + env(safe-area-inset-bottom))!important;
+}
+
+/* Center identity blocks that previously felt visually off-axis. */
+.settings-hero{
+  justify-content:center!important;
+  text-align:center!important;
+  gap:12px!important;
+}
+.settings-hero>div:last-child{
+  min-width:0!important;
+}
+.settings-hero .yuy-logo-img.medium{
+  flex:0 0 auto!important;
+}
+.yuy-assistant-hero{
+  grid-template-columns:1fr!important;
+  text-align:center!important;
+  justify-items:center!important;
+  align-items:center!important;
+  gap:14px!important;
+}
+.yuy-assistant-hero img{
+  width:min(180px,58vw)!important;
+  max-width:180px!important;
+  margin:0 auto!important;
+  object-position:center!important;
+}
+.yuy-assistant-hero>div{
+  width:100%;
+}
+
+/* On small phones keep everything centered and edge-safe. */
+@media(max-width:390px){
+  .yuy-chat-hero-card{padding-bottom:44px}
+  .yuy-welcome-bubble{width:80%;min-height:78px;padding:13px 14px}
+  .yuy-reference-chat .composer.yuy-composer-v52{width:calc(100% - 16px)!important}
+  .yuy-v52-tabs{padding-left:8px;padding-right:8px}
+  .yuy-v52-tabs .plus-flower{width:60px;height:55px}
+}

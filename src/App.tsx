@@ -606,59 +606,92 @@ export default function App() {
 
   if (panel === "settings") {
     return (
-      <SettingsPanel
-        onBack={() => setPanel(null)}
-        nativeShell={nativeShell}
-        health={health}
-        aiSettings={aiSettings}
-        setAISettings={setAISettings}
-        aiApiKey={aiApiKey}
-        setAiApiKey={setAiApiKey}
-        onProviderChange={changeProvider}
-        onTestAI={testAI}
-        onSaveAI={saveAI}
-        aiTesting={aiTesting}
-        aiSaving={aiSaving}
-        onOpenMemory={() => setPanel("memory")}
-        onExport={() => void exportData()}
-        onLogout={logout}
-        notice={notice}
-        error={error}
-      />
+      <div className="app-shell yuy-reference-shell panel-shell-with-nav">
+        <SettingsPanel
+          onBack={() => setPanel(null)}
+          nativeShell={nativeShell}
+          health={health}
+          aiSettings={aiSettings}
+          setAISettings={setAISettings}
+          aiApiKey={aiApiKey}
+          setAiApiKey={setAiApiKey}
+          onProviderChange={changeProvider}
+          onTestAI={testAI}
+          onSaveAI={saveAI}
+          aiTesting={aiTesting}
+          aiSaving={aiSaving}
+          onOpenMemory={() => setPanel("memory")}
+          onExport={() => void exportData()}
+          onLogout={logout}
+          notice={notice}
+          error={error}
+        />
+        <PersistentBottomNav
+          view={view}
+          panel={panel}
+          onChat={() => { setPanel(null); setView("chat"); }}
+          onCalendar={() => { setPanel(null); setView("calendar"); }}
+          onAssistant={() => setPanel("assistant")}
+          onMemory={() => setPanel("memory")}
+          onSettings={() => setPanel("settings")}
+        />
+      </div>
     );
   }
 
   if (panel === "assistant") {
     return (
-      <AssistantPanel
-        onBack={() => setPanel(null)}
-        onChoose={(role) => {
-          setPanel(null);
-          setView("chat");
-          const prompts: Record<Role, string> = {
-            media: "小玉，请切换到新媒体运营助手，帮我处理今天的内容与运营工作。",
-            health: "小玉，请作为健康咨询助手，帮我整理今天的身体状态和需要关注的事项。",
-            daily: "小玉，请作为日常助理，帮我安排今天最重要的事情。",
-            interior: "小玉，请作为软装学习伙伴，陪我学习和整理今天的设计灵感。",
-            journal: "小玉，请作为随笔记录员，帮我记录和整理今天的想法。",
-          };
-          setMessage(prompts[role]);
-        }}
-      />
+      <div className="app-shell yuy-reference-shell panel-shell-with-nav">
+        <AssistantPanel
+          onBack={() => setPanel(null)}
+          onChoose={(role) => {
+            setPanel(null);
+            setView("chat");
+            const prompts: Record<Role, string> = {
+              media: "小玉，请切换到新媒体运营助手，帮我处理今天的内容与运营工作。",
+              health: "小玉，请作为健康咨询助手，帮我整理今天的身体状态和需要关注的事项。",
+              daily: "小玉，请作为日常助理，帮我安排今天最重要的事情。",
+              interior: "小玉，请作为软装学习伙伴，陪我学习和整理今天的设计灵感。",
+              journal: "小玉，请作为随笔记录员，帮我记录和整理今天的想法。",
+            };
+            setMessage(prompts[role]);
+          }}
+        />
+        <PersistentBottomNav
+          view={view}
+          panel={panel}
+          onChat={() => { setPanel(null); setView("chat"); }}
+          onCalendar={() => { setPanel(null); setView("calendar"); }}
+          onAssistant={() => setPanel("assistant")}
+          onMemory={() => setPanel("memory")}
+          onSettings={() => setPanel("settings")}
+        />
+      </div>
     );
   }
 
   if (panel === "memory") {
     return (
-      <MemoryPanel
-        onBack={() => setPanel(null)}
-        mode={memoryMode}
-        setMode={setMemoryMode}
-        activeRole={activeRole}
-        setActiveRole={setActiveRole}
-        memories={memories}
-        metrics={metrics}
-      />
+      <div className="app-shell yuy-reference-shell panel-shell-with-nav">
+        <MemoryPanel
+          onBack={() => setPanel(null)}
+          mode={memoryMode}
+          setMode={setMemoryMode}
+          activeRole={activeRole}
+          setActiveRole={setActiveRole}
+          memories={memories}
+          metrics={metrics}
+        />
+        <PersistentBottomNav
+          view={view}
+          panel={panel}
+          onChat={() => { setPanel(null); setView("chat"); }}
+          onCalendar={() => { setPanel(null); setView("calendar"); }}
+          onAssistant={() => setPanel("assistant")}
+          onMemory={() => setPanel("memory")}
+          onSettings={() => setPanel("settings")}
+        />
+      </div>
     );
   }
 
@@ -699,16 +732,15 @@ export default function App() {
         )}
       </main>
 
-      <nav
-        className={`yuy-reference-tabs ${view === "calendar" ? "calendar-active" : "chat-active"}`}
-        aria-label="主导航"
-      >
-        <button className="yuy-tab-hit tab-chat" aria-label="聊天" onClick={() => { setPanel(null); setView("chat"); }} />
-        <button className="yuy-tab-hit tab-calendar" aria-label="日程" onClick={() => { setPanel(null); setView("calendar"); }} />
-        <button className="yuy-tab-hit tab-plus" aria-label="小玉助手" onClick={() => setPanel("assistant")} />
-        <button className="yuy-tab-hit tab-discover" aria-label="发现" onClick={() => setPanel("memory")} />
-        <button className="yuy-tab-hit tab-me" aria-label="我的" onClick={() => setPanel("settings")} />
-      </nav>
+      <PersistentBottomNav
+        view={view}
+        panel={panel}
+        onChat={() => { setPanel(null); setView("chat"); }}
+        onCalendar={() => { setPanel(null); setView("calendar"); }}
+        onAssistant={() => setPanel("assistant")}
+        onMemory={() => setPanel("memory")}
+        onSettings={() => setPanel("settings")}
+      />
       {eventDraft && (
         <EventEditor
           draft={eventDraft}
@@ -757,9 +789,15 @@ function ChatView({
   return (
     <section className="chat-page yuy-reference-chat">
       <div className="chat-scroll">
-        <div className="yuy-reference-chat-header">
-          <img src="/yuy-chat-header-tight.png" alt="YUY 小玉" />
-          <button className="yuy-header-bell-hit" onClick={onOpenSettings} aria-label="设置" />
+        <div className="yuy-chat-hero-card">
+          <div className="yuy-reference-chat-header">
+            <img src="/yuy-chat-hero-visual.png" alt="YUY 小玉与伙伴" />
+            <button className="yuy-header-bell-hit" onClick={onOpenSettings} aria-label="设置" />
+          </div>
+          <div className="yuy-welcome-bubble">
+            <strong>今天想和小玉聊点什么呢？</strong>
+            <span>学习、工作、生活，我都在哦 <b>✿</b></span>
+          </div>
         </div>
 
         {history.map((entry) => (
@@ -817,10 +855,8 @@ function ChatView({
         <div ref={chatEndRef} />
       </div>
 
-      <form className="composer yuy-composer-v51" onSubmit={onSend}>
-        <span className="composer-leading" aria-hidden="true">
-          <img src="/yuy-composer-flower.png" alt="" />
-        </span>
+      <form className="composer yuy-composer-v52" onSubmit={onSend}>
+        <button type="button" className="composer-leading" aria-label="更多功能">✿</button>
         <textarea
           value={message}
           onChange={(e) => setMessage(e.target.value)}
@@ -839,7 +875,14 @@ function ChatView({
           disabled={sending}
           aria-label={message.trim() ? "发送" : "语音"}
         >
-          {message.trim() ? "↑" : <img src="/yuy-composer-mic.png" alt="" />}
+          {message.trim() ? (
+            <span className="send-arrow">↑</span>
+          ) : (
+            <svg className="mic-svg" viewBox="0 0 24 24" aria-hidden="true">
+              <rect x="8" y="3" width="8" height="12" rx="4" fill="none" stroke="currentColor" strokeWidth="2" />
+              <path d="M5.5 11.5v.5a6.5 6.5 0 0 0 13 0v-.5M12 18.5V22M8.5 22h7" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" />
+            </svg>
+          )}
         </button>
       </form>
     </section>
@@ -1113,6 +1156,50 @@ function EventEditor({
         </label>
       </div>
     </div>
+  );
+}
+
+function PersistentBottomNav({
+  view,
+  panel,
+  onChat,
+  onCalendar,
+  onAssistant,
+  onMemory,
+  onSettings,
+}: {
+  view: MainView;
+  panel: PanelView;
+  onChat: () => void;
+  onCalendar: () => void;
+  onAssistant: () => void;
+  onMemory: () => void;
+  onSettings: () => void;
+}) {
+  const chatActive = !panel && view === "chat";
+  const calendarActive = !panel && view === "calendar";
+  return (
+    <nav className="yuy-v52-tabs" aria-label="主导航">
+      <button className={chatActive ? "active" : ""} onClick={onChat} aria-label="对话">
+        <span className="nav-icon-wrap"><img src="/yuy-nav-chat-tight.png" alt="" /></span>
+        <span className="nav-label">对话</span>
+      </button>
+      <button className={calendarActive ? "active" : ""} onClick={onCalendar} aria-label="日程">
+        <span className="nav-icon-wrap"><img src="/yuy-nav-calendar-tight.png" alt="" /></span>
+        <span className="nav-label">日程</span>
+      </button>
+      <button className={`nav-plus ${panel === "assistant" ? "active" : ""}`} onClick={onAssistant} aria-label="小玉助手">
+        <span className="plus-flower"><b>＋</b></span>
+      </button>
+      <button className={panel === "memory" ? "active" : ""} onClick={onMemory} aria-label="记忆">
+        <span className="nav-icon-wrap"><img src="/yuy-nav-discover-tight.png" alt="" /></span>
+        <span className="nav-label">记忆</span>
+      </button>
+      <button className={panel === "settings" ? "active" : ""} onClick={onSettings} aria-label="我的">
+        <span className="nav-icon-wrap"><img src="/yuy-nav-me-tight.png" alt="" /></span>
+        <span className="nav-label">我的</span>
+      </button>
+    </nav>
   );
 }
 
